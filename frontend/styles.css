@@ -314,7 +314,7 @@ input, textarea { font-family: inherit; }
   transform: rotate(var(--tilt, 0deg));
   box-shadow: var(--shadow-soft);
   transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
-  animation: wave-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: wave-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 @keyframes wave-in {
