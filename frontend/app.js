@@ -239,7 +239,12 @@
         isExistingUser: sent.data.isExistingUser
       };
       startResendCountdown(btn);
-      toast('验证码已启程，请注意查收');
+      if (sent.data.demoCode) {
+        $('code').value = sent.data.demoCode;
+        toast('演示模式验证码：' + sent.data.demoCode);
+      } else {
+        toast('验证码已启程，请注意查收');
+      }
     }).catch(function () {
       showAuthError('海浪打湿了线路，验证码发送失败，请稍后再试。');
       btn.disabled = false;
