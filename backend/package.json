@@ -1,0 +1,13 @@
+{
+  "name": "island-wave-cards-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "孤岛浪花 · 零依赖本地静态服务器（真实后端为 WorkBuddy 托管云服务，不在本仓库）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>孤岛卡片 · 浪花只光顾一次</title>
+  <meta name="description" content="每个人都是一座孤岛。把想说的话写成卡片，它会漂进某一片海，被某一个人看到一次，然后永远退去。" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23e6f2f4'/%3E%3Cpath d='M5 20 C10 14 13 24 18 18 C22 13 25 19 28 16' stroke='%232b5d68' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+  <!-- ==================== 登岛（登录 / 注册） ==================== -->
+  <section id="auth-view">
+    <div class="auth-card">
+      <svg width="52" height="52" viewBox="0 0 52 52" aria-hidden="true">
+        <circle cx="26" cy="26" r="23" fill="none" stroke="#8fc3cc" stroke-width="1.6" stroke-dasharray="3 5"/>
+        <path d="M8 33 C14 25 18 37 24 30 C29 24 33 32 38 27 C41 24 43 26 45 25" stroke="#2b5d68" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+        <path d="M8 40 C14 32 18 44 24 37 C29 31 33 39 38 34 C41 31 43 33 45 32" stroke="#5b93a0" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.6"/>
+      </svg>
+      <h1 class="auth-title">孤岛卡片</h1>
+      <p class="auth-poem">每个人都是一座孤岛。<br/>把心里的话写下来，它会变成一朵浪花，<br/>漂进某一片海，被某一个人看到一次，<br/>然后永远退去。</p>
+
+      <form id="phone-form" novalidate>
+        <div class="field">
+          <label for="phone">手机号 · 你在这片海上的信标</label>
+          <input id="phone" type="tel" inputmode="numeric" maxlength="11" placeholder="11 位手机号" autocomplete="tel" />
+          <p class="field-error" id="phone-error"></p>
+        </div>
+        <div class="field">
+          <label for="code">验证码</label>
+          <div class="otp-row">
+            <input id="code" type="text" inputmode="numeric" maxlength="6" placeholder="6 位验证码" autocomplete="one-time-code" />
+            <button type="button" class="code-btn" id="send-code-btn">获取验证码</button>
+          </div>
+          <p class="field-error" id="code-error"></p>
+        </div>
+        <button type="submit" class="primary-btn" id="login-btn">登 岛</button>
+      </form>
+
+      <div class="auth-divider">或者</div>
+
+      <button type="button" class="wechat-btn" id="wechat-login-btn">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M8.7 4C5.4 4 2.7 6.2 2.7 9c0 1.6.9 3 2.4 4L4.4 15l2.4-1.2c.6.2 1.2.3 1.9.3h.5a5.6 5.6 0 0 1-.2-1.4c0-3 2.9-5.4 6.5-5.4h.6C15.5 5.7 12.4 4 8.7 4Z" fill="#3a7a4f"/>
+          <path d="M21.3 13.1c0-2.3-2.3-4.1-5.1-4.1s-5.1 1.8-5.1 4.1 2.3 4.1 5.1 4.1c.6 0 1.1-.1 1.6-.2l2 1-.5-1.6c1.2-.8 2-2 2-3.3ZM17 12.4a.85.85 0 1 1 0-1.7.85.85 0 0 1 0 1.7Zm-2.6 0a.85.85 0 1 1 0-1.7.85.85 0 0 1 0 1.7Z" fill="#3a7a4f"/>
+        </svg>
+        微信登录
+      </button>
+
+      <p class="auth-note">首次登岛会自动为你创建一座新岛。<br/>这里没有关注、点赞、评论和搜索——<br/>没有人能走进你的岛，除了你自己。</p>
+      <p class="auth-error" id="auth-error"></p>
+    </div>
+  </section>
+
+  <!-- ==================== 应用主体 ==================== -->
+  <div id="app-view">
+    <header class="topbar">
+      <div class="brand">
+        <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+          <circle cx="17" cy="17" r="15" fill="none" stroke="#8fc3cc" stroke-width="1.4" stroke-dasharray="3 5"/>
+          <path d="M6 21 C10 15 13 25 17 20 C20.5 15.5 23.5 22 27 18" stroke="#2b5d68" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <div class="brand-name">孤岛卡片</div>
+          <div class="brand-sub">浪花只会光顾一次</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <button id="nav-sea" class="active" type="button">卡片海</button>
+        <button id="nav-island" type="button">我的孤岛</button>
+      </nav>
+      <div class="topbar-right">
+        <span class="who" id="who"></span>
+        <button class="ghost-btn" id="logout-btn" type="button">离岛</button>
+      </div>
+    </header>
+
+    <!-- 卡片海 -->
+    <main id="sea-view">
+      <div class="sea-status">
+        <span class="count" id="sea-count">海面很安静……</span>
+        <span class="hint">实时刷新 · 没有推荐，只有偶遇</span>
+        <span class="live"><span class="live-dot"></span>实时</span>
+      </div>
+      <div class="card-grid" id="card-grid"></div>
+      <div class="empty-sea" id="sea-empty">
+        <svg width="72" height="56" viewBox="0 0 72 56" aria-hidden="true">
+          <path d="M4 38 C14 28 22 44 32 36 C40 29 48 40 56 34 C62 30 66 33 68 32" stroke="#8fc3cc" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <path d="M4 47 C14 37 22 53 32 45 C40 38 48 49 56 43 C62 39 66 42 68 41" stroke="#b9d9de" stroke-width="2" fill="none" stroke-linecap="round"/>
+        </svg>
+        <p class="big">海面很安静</p>
+        <p class="small">暂时没有新的浪花拍向你的岛。<br/>去写一张卡片吧，它不知道会漂向谁的岸。</p>
+      </div>
+    </main>
+
+    <!-- 我的孤岛 -->
+    <main id="island-view" style="display:none">
+      <div class="island-head">
+        <p class="title">我的孤岛</p>
+        <p class="desc">这里只有你能看到——你往日写下的每一张卡片，都留在这座岛上。<br/>别人或许曾与它们擦肩，却永远无法走进来。</p>
+      </div>
+      <div class="card-grid island-grid" id="island-grid"></div>
+      <div class="empty-sea" id="island-empty">
+        <p class="big">这座岛还空着</p>
+        <p class="small">写下第一张卡片，让它成为第一朵浪。</p>
+      </div>
+    </main>
+
+    <button class="fab" id="compose-btn" type="button">
+      <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M10 3v14M3 10h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+      写卡片
+    </button>
+  </div>
+
+  <!-- ==================== 卡片详情 ==================== -->
+  <div class="overlay" id="card-overlay">
+    <div class="modal" style="max-width:520px">
+      <div class="detail-card" id="detail-card">
+        <button class="modal-close" id="detail-close" type="button" aria-label="关闭">✕</button>
+        <p class="full-text" id="detail-text"></p>
+        <div class="detail-meta">
+          <span id="detail-time"></span><span class="dot"></span><span>来自某座不知名的岛</span>
+        </div>
+        <p class="detail-note">浪花只会光顾这座岛一次。<br/>合上这张卡片，它就会从你的海面永远退去。</p>
+        <div class="detail-actions">
+          <button class="primary-btn" id="detail-done" type="button">让浪花退去</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 发布卡片 ==================== -->
+  <div class="overlay" id="compose-overlay">
+    <div class="modal">
+      <form class="compose" id="compose-form" novalidate>
+        <button class="modal-close" id="compose-close" type="button" aria-label="关闭">✕</button>
+        <h2>写一张卡片</h2>
+        <p class="sub">它会漂入海中，被某一座岛看到一次，然后消失。没有人知道是你写的。</p>
+        <textarea id="compose-text" maxlength="900" placeholder="此刻想说的……（写下的瞬间，它就开始漂了）"></textarea>
+        <div class="compose-foot">
+          <span class="char-count" id="char-count">0 / 800</span>
+          <div class="tint-picker" id="tint-picker">
+            <button type="button" class="tint-dot t-sea sel" data-tint="sea" title="海"></button>
+            <button type="button" class="tint-dot t-rain" data-tint="rain" title="雨"></button>
+            <button type="button" class="tint-dot t-dusk" data-tint="dusk" title="暮"></button>
+            <button type="button" class="tint-dot t-leaf" data-tint="leaf" title="林"></button>
+            <button type="button" class="tint-dot t-ember" data-tint="ember" title="烬"></button>
+            <button type="button" class="tint-dot t-dawn" data-tint="dawn" title="晓"></button>
+          </div>
+        </div>
+        <div style="margin-top:20px">
+          <button class="primary-btn" id="publish-btn" type="submit">放 入 海 中</button>
+        </div>
+        <p class="field-error" id="compose-error"></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" role="status"></div>
+
+  <div class="footer-waves" aria-hidden="true">
+    <svg viewBox="0 0 1440 74" preserveAspectRatio="none">
+      <path d="M0,42 C180,18 360,58 540,40 C720,22 900,56 1080,38 C1260,20 1380,44 1440,36 L1440,74 L0,74 Z" fill="rgba(91,147,160,0.10)"/>
+      <path d="M0,54 C180,34 360,66 540,50 C720,34 900,64 1080,48 C1260,32 1380,54 1440,46 L1440,74 L0,74 Z" fill="rgba(43,93,104,0.10)"/>
+    </svg>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
