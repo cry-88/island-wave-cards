@@ -1,0 +1,602 @@
+/* ============================================================
+   孤岛卡片 · 海面与宣纸
+   每个人都是一座孤岛，卡片是拍打到岸的浪。
+   ============================================================ */
+
+:root {
+  --paper: #f6f3ea;
+  --paper-deep: #efeadd;
+  --ink: #33414e;
+  --ink-soft: #6d7b86;
+  --ink-faint: #9aa5ad;
+  --line: #e3ddcf;
+  --sea-deep: #2b5d68;
+  --sea-mid: #5b93a0;
+  --foam: #ffffff;
+  --shadow-soft: 0 6px 24px rgba(51, 65, 78, 0.08);
+  --shadow-lift: 0 14px 40px rgba(51, 65, 78, 0.16);
+  --serif: "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
+  --sans: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: var(--sans);
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 500px at 85% -10%, rgba(91, 147, 160, 0.10), transparent 60%),
+    radial-gradient(900px 420px at -10% 110%, rgba(43, 93, 104, 0.08), transparent 60%),
+    var(--paper);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, textarea { font-family: inherit; }
+
+::selection { background: rgba(91, 147, 160, 0.25); }
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; gap: 18px;
+  padding: 14px 28px;
+  background: rgba(246, 243, 234, 0.86);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand { display: flex; align-items: center; gap: 10px; user-select: none; }
+
+.brand-name {
+  font-family: var(--serif);
+  font-size: 21px; font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--sea-deep);
+}
+
+.brand-sub {
+  font-size: 11px; color: var(--ink-faint);
+  letter-spacing: 1px; margin-top: 2px;
+}
+
+.brand svg { display: block; }
+
+.nav { display: flex; gap: 6px; margin-left: 12px; }
+
+.nav button {
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  transition: all 0.25s ease;
+}
+
+.nav button:hover { color: var(--sea-deep); background: rgba(91, 147, 160, 0.10); }
+
+.nav button.active {
+  color: var(--foam);
+  background: var(--sea-deep);
+  box-shadow: 0 4px 14px rgba(43, 93, 104, 0.30);
+}
+
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+
+.who {
+  font-size: 12px; color: var(--ink-faint);
+  max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.ghost-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 13px; color: var(--ink-soft);
+  background: var(--foam);
+  transition: all 0.25s ease;
+}
+
+.ghost-btn:hover { border-color: var(--sea-mid); color: var(--sea-deep); }
+
+/* ---------- 登录 / 登岛 ---------- */
+#auth-view {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px 20px;
+}
+
+.auth-card {
+  width: 100%; max-width: 430px;
+  background: var(--foam);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: var(--shadow-soft);
+  padding: 44px 40px 36px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-card::before {
+  content: "";
+  position: absolute; inset: 0 0 auto 0; height: 6px;
+  background: linear-gradient(90deg, var(--sea-mid), var(--sea-deep), var(--sea-mid));
+  opacity: 0.85;
+}
+
+.auth-title {
+  font-family: var(--serif);
+  font-size: 30px; font-weight: 700;
+  letter-spacing: 6px;
+  color: var(--sea-deep);
+  margin: 10px 0 6px;
+}
+
+.auth-poem {
+  font-family: var(--serif);
+  font-size: 13.5px; line-height: 1.9;
+  color: var(--ink-soft);
+  margin-bottom: 30px;
+}
+
+.field { text-align: left; margin-bottom: 16px; }
+
+.field label {
+  display: block;
+  font-size: 12.5px; color: var(--ink-soft);
+  margin-bottom: 7px; letter-spacing: 1px;
+}
+
+.field input {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  outline: none;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.field input:focus {
+  border-color: var(--sea-mid);
+  box-shadow: 0 0 0 3px rgba(91, 147, 160, 0.15);
+  background: var(--foam);
+}
+
+.field-error {
+  display: none;
+  font-size: 12px; color: #c05b4a;
+  margin-top: 6px;
+}
+
+.field-error.show { display: block; }
+
+.otp-row { display: flex; gap: 10px; }
+
+.otp-row input { flex: 1; }
+
+.code-btn {
+  flex-shrink: 0;
+  padding: 0 16px;
+  font-size: 13px;
+  color: var(--sea-deep);
+  background: rgba(91, 147, 160, 0.12);
+  border: 1px solid rgba(91, 147, 160, 0.35);
+  border-radius: 12px;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+}
+
+.code-btn:hover:not(:disabled) { background: rgba(91, 147, 160, 0.22); }
+
+.code-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.primary-btn {
+  width: 100%;
+  padding: 13px;
+  font-size: 15.5px; letter-spacing: 3px;
+  color: var(--foam);
+  background: linear-gradient(135deg, var(--sea-mid), var(--sea-deep));
+  border-radius: 12px;
+  box-shadow: 0 8px 22px rgba(43, 93, 104, 0.30);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.primary-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-lift); }
+.primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.auth-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 22px 0 18px;
+  font-size: 12px; color: var(--ink-faint);
+}
+
+.auth-divider::before, .auth-divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--line);
+}
+
+.wechat-btn {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  padding: 12px;
+  font-size: 14.5px;
+  color: #3a7a4f;
+  background: rgba(88, 160, 105, 0.10);
+  border: 1px solid rgba(88, 160, 105, 0.35);
+  border-radius: 12px;
+  transition: all 0.25s ease;
+}
+
+.wechat-btn:hover { background: rgba(88, 160, 105, 0.18); }
+
+.auth-note {
+  margin-top: 20px;
+  font-size: 12px; line-height: 1.8;
+  color: var(--ink-faint);
+}
+
+.auth-error {
+  display: none;
+  margin-top: 14px;
+  font-size: 13px; color: #c05b4a;
+  background: rgba(192, 91, 74, 0.08);
+  border-radius: 10px;
+  padding: 9px 12px;
+  text-align: left;
+  line-height: 1.6;
+}
+
+.auth-error.show { display: block; }
+
+/* ---------- 海面 ---------- */
+#app-view { display: none; min-height: 100vh; }
+#app-view.on { display: block; }
+
+.sea-status {
+  display: flex; align-items: baseline; gap: 14px;
+  padding: 26px 34px 6px;
+  max-width: 1280px; margin: 0 auto;
+}
+
+.sea-status .count {
+  font-family: var(--serif);
+  font-size: 17px; color: var(--sea-deep);
+  letter-spacing: 1px;
+}
+
+.sea-status .hint {
+  font-size: 12.5px; color: var(--ink-faint);
+}
+
+.sea-status .live {
+  margin-left: auto;
+  font-size: 12px; color: var(--sea-mid);
+  display: flex; align-items: center; gap: 6px;
+}
+
+.live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--sea-mid);
+  animation: pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.card-grid {
+  padding: 18px 34px 120px;
+  max-width: 1280px; margin: 0 auto;
+  columns: 4; column-gap: 20px;
+}
+
+@media (max-width: 1080px) { .card-grid { columns: 3; } }
+@media (max-width: 760px)  { .card-grid { columns: 2; padding: 18px 18px 110px; } }
+@media (max-width: 480px)  { .card-grid { columns: 1; } }
+
+/* ---------- 卡片（浪花） ---------- */
+.card {
+  break-inside: avoid;
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 0 0 20px;
+  padding: 22px 22px 18px;
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  transform: rotate(var(--tilt, 0deg));
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+  animation: wave-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes wave-in {
+  from { opacity: 0; transform: translateY(16px) rotate(var(--tilt, 0deg)); }
+  to   { opacity: 1; transform: translateY(0) rotate(var(--tilt, 0deg)); }
+}
+
+.card:hover {
+  transform: translateY(-4px) rotate(0deg) scale(1.015);
+  box-shadow: var(--shadow-lift);
+}
+
+.card::after {
+  /* 卡底的浪线 */
+  content: "";
+  position: absolute; left: 0; right: 0; bottom: 0; height: 26px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 28' preserveAspectRatio='none'%3E%3Cpath d='M0,18 C15,8 30,8 45,16 C60,24 75,24 90,14 C100,8 110,8 120,14 L120,28 L0,28 Z' fill='rgba(255,255,255,0.32)'/%3E%3C/svg%3E") bottom / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+.card .excerpt {
+  font-family: var(--serif);
+  font-size: 15px; line-height: 1.85;
+  white-space: pre-wrap; word-break: break-word;
+  position: relative; z-index: 1;
+}
+
+.card .meta {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 14px;
+  font-size: 11.5px; opacity: 0.72;
+  position: relative; z-index: 1;
+}
+
+.card .meta .dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+
+/* 六种潮色 */
+.card.tint-sea  { background: #e6f2f4; color: #2b5d68; }
+.card.tint-rain { background: #e8edf5; color: #3c5878; }
+.card.tint-dusk { background: #f0eaf6; color: #5f4b80; }
+.card.tint-leaf { background: #e9f3ea; color: #3f6f4e; }
+.card.tint-ember{ background: #f9eee6; color: #96543a; }
+.card.tint-dawn { background: #fbf2e4; color: #9a6b2f; }
+
+/* 详情弹层同样使用潮色 */
+.detail-card.tint-sea  { background: #e6f2f4; color: #2b5d68; }
+.detail-card.tint-rain { background: #e8edf5; color: #3c5878; }
+.detail-card.tint-dusk { background: #f0eaf6; color: #5f4b80; }
+.detail-card.tint-leaf { background: #e9f3ea; color: #3f6f4e; }
+.detail-card.tint-ember{ background: #f9eee6; color: #96543a; }
+.detail-card.tint-dawn { background: #fbf2e4; color: #9a6b2f; }
+
+/* 看过之后，浪花退去 */
+.card.dissolving {
+  animation: dissolve 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes dissolve {
+  0%   { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); }
+  35%  { opacity: 0.85; filter: blur(2px); transform: translateY(-8px) scale(1.02); }
+  100% { opacity: 0; filter: blur(7px); transform: translateY(26px) scale(0.94); }
+}
+
+/* ---------- 空海 ---------- */
+.empty-sea {
+  display: none;
+  text-align: center;
+  padding: 90px 20px 60px;
+  color: var(--ink-faint);
+}
+
+.empty-sea.on { display: block; }
+
+.empty-sea .big {
+  font-family: var(--serif);
+  font-size: 19px; color: var(--ink-soft);
+  letter-spacing: 2px; margin: 18px 0 8px;
+}
+
+.empty-sea .small { font-size: 13px; line-height: 1.9; }
+
+/* ---------- 悬浮发布按钮 ---------- */
+.fab {
+  position: fixed; right: 34px; bottom: 34px; z-index: 45;
+  display: flex; align-items: center; gap: 9px;
+  padding: 14px 24px;
+  font-size: 15px; letter-spacing: 2px;
+  color: var(--foam);
+  background: linear-gradient(135deg, var(--sea-mid), var(--sea-deep));
+  border-radius: 999px;
+  box-shadow: 0 12px 30px rgba(43, 93, 104, 0.35);
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
+}
+
+.fab:hover { transform: translateY(-3px) scale(1.03); box-shadow: var(--shadow-lift); }
+
+/* ---------- 弹层通用 ---------- */
+.overlay {
+  position: fixed; inset: 0; z-index: 60;
+  display: none;
+  align-items: center; justify-content: center;
+  padding: 26px;
+  background: rgba(43, 55, 66, 0.38);
+  backdrop-filter: blur(6px);
+}
+
+.overlay.on { display: flex; animation: fade-in 0.28s ease both; }
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+  width: 100%; max-width: 560px;
+  max-height: 86vh;
+  overflow: auto;
+  background: var(--foam);
+  border-radius: 22px;
+  box-shadow: var(--shadow-lift);
+  animation: modal-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(26px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* 卡片详情 */
+.detail-card { padding: 38px 36px 28px; position: relative; }
+
+.detail-card .full-text {
+  font-family: var(--serif);
+  font-size: 17px; line-height: 2.05;
+  white-space: pre-wrap; word-break: break-word;
+}
+
+.detail-card .detail-meta {
+  margin-top: 22px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; opacity: 0.75;
+}
+
+.detail-note {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.12);
+  font-size: 12.5px; line-height: 1.8;
+  opacity: 0.72;
+}
+
+.modal-close {
+  position: absolute; top: 14px; right: 16px;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  font-size: 17px;
+  color: inherit; opacity: 0.55;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover { opacity: 1; background: rgba(0, 0, 0, 0.07); }
+
+.detail-actions { margin-top: 22px; text-align: center; }
+
+.detail-actions .primary-btn { width: auto; padding: 11px 42px; font-size: 14px; }
+
+/* 发布弹窗 */
+.compose { padding: 34px 34px 28px; }
+
+.compose h2 {
+  font-family: var(--serif);
+  font-size: 21px; font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--sea-deep);
+  margin-bottom: 6px;
+}
+
+.compose .sub { font-size: 12.5px; color: var(--ink-faint); margin-bottom: 20px; }
+
+.compose textarea {
+  width: 100%;
+  min-height: 170px;
+  resize: vertical;
+  padding: 16px;
+  font-family: var(--serif);
+  font-size: 15.5px; line-height: 1.9;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  outline: none;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.compose textarea:focus {
+  border-color: var(--sea-mid);
+  box-shadow: 0 0 0 3px rgba(91, 147, 160, 0.15);
+  background: var(--foam);
+}
+
+.compose-foot {
+  display: flex; align-items: center; gap: 14px;
+  margin-top: 16px;
+}
+
+.char-count { font-size: 12px; color: var(--ink-faint); }
+.char-count.over { color: #c05b4a; }
+
+.tint-picker { display: flex; gap: 8px; margin-left: auto; }
+
+.tint-dot {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.tint-dot:hover { transform: scale(1.15); }
+
+.tint-dot.sel { border-color: var(--ink); transform: scale(1.12); }
+
+.tint-dot.t-sea  { background: #e6f2f4; box-shadow: inset 0 0 0 1px #8fc3cc; }
+.tint-dot.t-rain { background: #e8edf5; box-shadow: inset 0 0 0 1px #a3b8d4; }
+.tint-dot.t-dusk { background: #f0eaf6; box-shadow: inset 0 0 0 1px #b9a6d3; }
+.tint-dot.t-leaf { background: #e9f3ea; box-shadow: inset 0 0 0 1px #9cc3a4; }
+.tint-dot.t-ember{ background: #f9eee6; box-shadow: inset 0 0 0 1px #d9ab8b; }
+.tint-dot.t-dawn { background: #fbf2e4; box-shadow: inset 0 0 0 1px #e0bd85; }
+
+/* ---------- 我的孤岛 ---------- */
+.island-head {
+  max-width: 1280px; margin: 0 auto;
+  padding: 30px 34px 4px;
+}
+
+.island-head .title {
+  font-family: var(--serif);
+  font-size: 22px; font-weight: 700;
+  letter-spacing: 3px; color: var(--sea-deep);
+}
+
+.island-head .desc {
+  margin-top: 6px;
+  font-size: 13px; line-height: 1.8; color: var(--ink-soft);
+}
+
+.island-grid { padding-top: 20px; }
+
+.island-card .del {
+  position: absolute; top: 10px; right: 12px; z-index: 2;
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: inherit; opacity: 0;
+  background: rgba(255, 255, 255, 0.55);
+  transition: opacity 0.2s ease;
+}
+
+.island-card:hover .del { opacity: 0.85; }
+.island-card .del:hover { opacity: 1; background: rgba(255, 255, 255, 0.9); }
+
+/* ---------- 提示条 ---------- */
+#toast {
+  position: fixed; left: 50%; bottom: 108px; z-index: 90;
+  transform: translateX(-50%) translateY(16px);
+  max-width: 78vw;
+  padding: 11px 22px;
+  font-size: 13.5px; line-height: 1.6;
+  color: var(--foam);
+  background: rgba(43, 55, 66, 0.92);
+  border-radius: 999px;
+  box-shadow: var(--shadow-lift);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* 底部浪线 */
+.footer-waves {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.footer-waves svg { display: block; width: 100%; height: 74px; }
