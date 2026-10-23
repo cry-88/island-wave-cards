@@ -26,7 +26,7 @@ jobs:
       - name: Build demo site
         run: |
           mkdir -p _site
-          cp frontend/styles.css frontend/app.js frontend/local-backend.js _site/
+          cp frontend/styles.css frontend/app.js frontend/config.js frontend/local-backend.js _site/
           # demo.html 作为 Pages 入口（可交互的本地演示版）
           cp frontend/demo.html _site/index.html
 
