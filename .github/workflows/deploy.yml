@@ -1,4 +1,4 @@
-name: Deploy demo to GitHub Pages
+name: Deploy to GitHub Pages
 
 on:
   push:
@@ -23,12 +23,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build demo site
+      - name: Build site
         run: |
           mkdir -p _site
-          cp frontend/styles.css frontend/app.js frontend/config.js frontend/local-backend.js _site/
-          # demo.html 作为 Pages 入口（可交互的本地演示版）
-          cp frontend/demo.html _site/index.html
+          cp frontend/styles.css frontend/app.js frontend/config.js _site/
+          # 真实版作为站点入口：直连 WorkBuddy 云服务（登录、卡片海、看过即消失）
+          cp frontend/index.html _site/index.html
+          # 演示版保留在 /demo.html：localStorage 本地后端，零门槛试玩
+          cp frontend/local-backend.js frontend/demo.html _site/demo.html
+          ls -la _site/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

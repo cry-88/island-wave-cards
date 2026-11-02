@@ -11,9 +11,10 @@
 
 ![卡片海](assets/screenshot-sea.png)
 
-## 在线演示
+## 在线访问
 
-👉 **[直接打开 Demo](https://cry-88.github.io/island-wave-cards/)** — GitHub Pages 部署的可交互演示版（数据存在浏览器本地，刷新不丢失）。
+- **[孤岛浪花 · 真实版](https://cry-88.github.io/island-wave-cards/)** —— 站点主入口，直连 WorkBuddy 托管云服务：手机号 / 微信登录后即可放卡入海，偶遇他人的浪花，看过即消失。
+- **[本地演示版](https://cry-88.github.io/island-wave-cards/demo.html)** —— 无需登录，数据存在浏览器本地，适合先试试手感。
 
 ## 目录结构
 
@@ -47,7 +48,7 @@ cd backend
 npm start          # 默认 http://localhost:3000，可用 PORT=8080 覆盖
 ```
 
-> 注意：`frontend/index.html` 是生产版入口，需要配置 WorkBuddy Cloud 云端后端（`config.js` 中的 `endpoint` 和 `publishableKey`）才能运行。如果你只是想体验效果，用 `demo.html`。
+> 注：`frontend/config.js` 已填入「孤岛浪花」应用（2026-11-03 激活）的真实云服务配置，线上真实版开箱即用；`demo.html` 仍可零门槛试玩。
 
 ## 架构说明
 
