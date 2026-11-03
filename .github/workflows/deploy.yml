@@ -30,7 +30,9 @@ jobs:
           # 真实版作为站点入口：直连 WorkBuddy 云服务（登录、卡片海、看过即消失）
           cp frontend/index.html _site/index.html
           # 演示版保留在 /demo.html：localStorage 本地后端，零门槛试玩
-          cp frontend/local-backend.js frontend/demo.html _site/demo.html
+          # （踩坑记录：cp 多源文件的目标必须是目录，不能是文件路径——曾在这里翻车）
+          cp frontend/local-backend.js _site/
+          cp frontend/demo.html _site/demo.html
           ls -la _site/
 
       - name: Setup Pages
