@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>潮汐簿 · 孤岛浪花 视觉提案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   潮汐簿 —— 孤岛浪花 视觉提案
+   主张：把「看过即消失」变成可读的度量。
+   海不出现为蓝色，只出现为刻度与记录。
+   ============================================================ */
+
+:root {
+  /* —— 六色一版：纸 / 墨 / 潮 / 藻 / 浮标 / 雾 —— */
+  --paper:      #E9E5D9;  /* 棉纸：冷灰宣纸，非暖奶油 */
+  --paper-deep: #DEDACB;  /* 纸的暗部（由纸与雾混出） */
+  --ink:        #1E2A2B;  /* 焦墨带青：正文与标题 */
+  --ink-soft:   #4A5B5C;  /* 次级墨（墨与潮混出） */
+  --tide:       #2B4C4E;  /* 深潮：水位尺、表头、结构线 */
+  --kelp:       #4F6B5C;  /* 海藻：已读、水痕、次级信息 */
+  --buoy:       #A8522A;  /* 浮标锈红：唯一强调色，只标「此刻」 */
+  --fog:        #BFC7C2;  /* 雾灰：刻度与发丝线 */
+
+  --serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", Georgia, serif;
+  --mono:  "IBM Plex Mono", "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --measure: 33em;          /* 正文行宽 ≤ 33 汉字 */
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--serif);
+  color: var(--ink);
+  background: var(--paper);
+  line-height: 1.85;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* 纸的纤维：一次铺满，不重复 */
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: .5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.28'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
+
+::selection { background: rgba(168, 82, 42, .22); }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ---------- 提案说明（不属于产品，仅这块是提案纸）---------- */
+.proposal {
+  position: relative; z-index: 2;
+  padding: 22px 28px 20px;
+  background: var(--paper-deep);
+  border-bottom: 1px solid var(--fog);
+  display: flex; flex-wrap: wrap; gap: 6px 26px;
+  align-items: baseline;
+}
+.proposal h1 {
+  font-size: 17px; font-weight: 600; letter-spacing: .04em;
+  color: var(--ink);
+}
+.proposal .note {
+  font-size: 13.5px; color: var(--ink-soft); max-width: 46em; line-height: 1.8;
+}
+.proposal nav { display: flex; flex-wrap: wrap; gap: 16px; margin-left: auto; }
+.proposal nav a {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .06em;
+  color: var(--tide); text-decoration: none;
+  border-bottom: 1px solid var(--fog); padding-bottom: 2px;
+}
+.proposal nav a:hover { border-bottom-color: var(--buoy); color: var(--buoy); }
+
+/* ---------- 页（书页结构：书眉 + 发丝线）---------- */
+.sheet {
+  position: relative; z-index: 2;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 0 28px 84px;
+}
+.sheet + .sheet { border-top: 1px solid var(--fog); }
+
+.running-head {
+  display: flex; align-items: baseline; gap: 14px;
+  padding: 26px 0 12px;
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: .14em;
+  color: var(--ink-soft);
+}
+.running-head .folio { color: var(--buoy); }
+.running-head .rule { flex: 1; height: 1px; background: var(--fog); }
+
+/* ---------- 品牌与导航 ---------- */
+.brandbar {
+  display: flex; align-items: center; gap: 26px;
+  padding: 20px 0 14px;
+  border-bottom: 1px solid var(--tide);
+}
+.brand {
+  font-size: 22px; font-weight: 600; letter-spacing: .18em;
+  color: var(--ink);
+}
+.brandnav { display: flex; gap: 22px; margin-left: auto; }
+.brandnav a {
+  font-size: 14.5px; color: var(--ink-soft); text-decoration: none;
+  letter-spacing: .08em;
+}
+.brandnav a:hover { color: var(--ink); }
+.brandnav a[aria-current="page"] { color: var(--ink); }
+.brandnav a[aria-current="page"]::before {
+  content: ""; display: inline-block;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--buoy); vertical-align: middle;
+  margin-right: 7px;
+}
+.brandbar .leave {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .08em;
+  color: var(--ink-soft); background: none; border: 1px solid var(--fog);
+  padding: 6px 13px; cursor: pointer;
+}
+.brandbar .leave:hover { border-color: var(--tide); color: var(--tide); }
+
+/* ---------- 登岛页：主视觉是潮汐曲线 ---------- */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+  gap: 48px;
+  align-items: start;
+  padding: 46px 0 0;
+}
+.hero h2 {
+  font-size: 44px; font-weight: 500; line-height: 1.16;
+  letter-spacing: .1em; color: var(--ink);
+}
+.hero .verse {
+  margin-top: 22px;
+  font-size: 16.5px; line-height: 2.05; color: var(--ink-soft);
+  max-width: 26em;
+}
+.tidechart { margin-top: 6px; }
+.tidechart figcaption {
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: .1em;
+  color: var(--ink-soft);
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding-bottom: 8px;
+}
+.tidechart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.tide-curve {
+  fill: none; stroke: var(--tide); stroke-width: 1.4;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.tide-fill { fill: rgba(43, 76, 78, .05); stroke: none; }
+.tide-datum { stroke: var(--fog); stroke-width: 1; stroke-dasharray: 2 4; }
+.tide-axis { fill: var(--ink-soft); font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; }
+.tide-label { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; fill: var(--ink); }
+.tide-label.low { fill: var(--kelp); }
+.tide-dot { fill: var(--buoy); }
+.tide-dot-low { fill: var(--kelp); }
+.draw {
+  stroke-dasharray: 1400; stroke-dashoffset: 1400;
+  animation: draw 1.5s cubic-bezier(.3,.7,.3,1) forwards;
+}
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+/* ---------- 表单 ---------- */
+.field { margin-top: 20px; }
+.field label {
+  display: block; font-size: 13px; letter-spacing: .1em;
+  color: var(--ink-soft); margin-bottom: 7px;
+}
+.field input, .field textarea {
+  width: 100%;
+  font-family: var(--mono); font-size: 15px;
+  color: var(--ink);
+  background: transparent;
+  border: none; border-bottom: 1px solid var(--tide);
+  padding: 9px 2px;
+  border-radius: 0;
+}
+.field input::placeholder, .field textarea::placeholder { color: #9AA5A2; }
+.field input:focus, .field textarea:focus {
+  outline: none; border-bottom-color: var(--buoy);
+}
+.field input:focus-visible, .field textarea:focus-visible { outline: 2px solid var(--buoy); outline-offset: 3px; }
+.otp-row { display: flex; gap: 18px; align-items: flex-end; }
+.otp-row .field { flex: 1; margin-top: 0; }
+.code-btn {
+  font-family: var(--mono); font-size: 12.5px; letter-spacing: .08em;
+  color: var(--tide); background: none;
+  border: 1px solid var(--tide); padding: 9px 14px;
+  cursor: pointer; white-space: nowrap;
+}
+.code-btn:hover { background: var(--tide); color: var(--paper); }
+.submit {
+  margin-top: 30px;
+  font-family: var(--serif); font-size: 16px; letter-spacing: .3em;
+  color: var(--paper); background: var(--tide);
+  border: none; padding: 13px 30px; cursor: pointer;
+}
+.submit:hover { background: var(--ink); }
+.footnote {
+  margin-top: 16px; font-size: 13px; color: var(--ink-soft); line-height: 1.9;
+}
+
+/* ---------- 潮汐记录簿（卡片海 = 一张表）---------- */
+.ledger-wrap { position: relative; margin-top: 26px; }
+.ledger-wrap::before {           /* 水位尺主轴 */
+  content: ""; position: absolute;
+  left: 26px; top: 40px; bottom: 22px; width: 1px;
+  background: var(--fog);
+}
+.ledger { width: 100%; border-collapse: collapse; }
+.ledger thead th {
+  font-family: var(--serif); font-weight: 500; font-size: 12.5px;
+  letter-spacing: .22em; color: var(--ink-soft);
+  text-align: left; padding: 0 0 10px;
+  border-bottom: 1px solid var(--tide);
+}
+.ledger thead th.col-level { padding-left: 0; width: 116px; }
+.ledger thead th.col-time  { width: 96px; }
+.ledger thead th.col-tint  { width: 62px; }
+.ledger thead th.col-state { width: 92px; }
+.tint-mark {
+  display: inline-block; width: 13px; height: 13px;
+  border-radius: 2px; border: 1px solid rgba(30,42,43,.22);
+}
+.tint-mark.tint-sea  { background: var(--tide); }
+.tint-mark.tint-rain { background: var(--fog); }
+.tint-mark.tint-dusk { background: var(--ink); }
+.ledger tbody td {
+  padding: 17px 0; vertical-align: top;
+  border-bottom: 1px solid var(--fog);
+}
+.ledger tbody td.col-level {
+  position: relative; padding-left: 0; width: 116px;
+  font-family: var(--mono); font-size: 13px; color: var(--tide);
+  letter-spacing: .04em;
+}
+.ledger tbody td.col-level::before {   /* 刻度：长度随潮位变化 */
+  content: ""; position: absolute;
+  left: 26px; top: 27px;
+  width: var(--len, 12px); height: 1px;
+  background: var(--tide);
+}
+.ledger tbody tr.major td.col-level::before { width: var(--len, 22px); background: var(--ink); }
+.ledger tbody td.col-time {
+  font-family: var(--mono); font-size: 13px; color: var(--ink-soft);
+  letter-spacing: .04em; padding-top: 18px;
+}
+.ledger tbody td.col-tint { padding-top: 21px; }
+.ledger tbody td.col-text { padding-top: 16px; }
+.row-open {
+  font-family: var(--serif); font-size: 16.5px; line-height: 1.9;
+  color: var(--ink); background: none; border: none; text-align: left;
+  cursor: pointer; display: block; max-width: var(--measure);
+  letter-spacing: .01em;
+}
+.row-open:hover { color: var(--tide); }
+.row-open:focus-visible { outline: 2px solid var(--buoy); outline-offset: 4px; }
+.ledger tbody td.col-state {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .08em;
+  color: var(--ink-soft); padding-top: 20px; text-align: right;
+}
+.state-unread { color: var(--buoy); }
+.state-read { color: var(--kelp); }
+
+/* 退潮：水痕 —— 读过的行在字下留一道潮线 */
+.row.is-read td.col-text .row-open { color: var(--kelp); cursor: default; }
+.row.is-read td.col-text::after {
+  content: ""; display: block; height: 1px; margin-top: 7px;
+  max-width: var(--measure);
+  background: repeating-linear-gradient(90deg, rgba(79,107,92,.55) 0 7px, transparent 7px 13px);
+}
+.row.is-read td.col-level, .row.is-read td.col-time { color: var(--kelp); }
+
+/* 展开的详情 */
+.detail td { padding-top: 0; border-bottom: none; }
+.detail-inner {
+  border-left: 1px solid var(--buoy);
+  padding: 4px 0 22px 26px;
+  max-width: var(--measure);
+  animation: rise .32s ease-out;
+}
+@keyframes rise { from { opacity: 0; transform: translateY(-4px); } }
+.detail-inner p { font-size: 17px; line-height: 2.05; color: var(--ink); }
+.detail-meta {
+  margin-top: 14px;
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: .1em;
+  color: var(--ink-soft);
+}
+.tide-btn {
+  margin-top: 18px;
+  font-family: var(--serif); font-size: 14.5px; letter-spacing: .16em;
+  color: var(--tide); background: none;
+  border: 1px solid var(--tide); padding: 9px 20px; cursor: pointer;
+}
+.tide-btn:hover { background: var(--tide); color: var(--paper); }
+.tide-btn:focus-visible { outline: 2px solid var(--buoy); outline-offset: 3px; }
+
+/* 入海刻度：卡片海的当前潮位 */
+.sea-note {
+  display: flex; align-items: baseline; gap: 12px;
+  margin-top: 20px;
+  font-family: var(--mono); font-size: 12px; letter-spacing: .1em;
+  color: var(--ink-soft);
+}
+.sea-note .now { color: var(--buoy); font-size: 14px; }
+.sea-note .rule { flex: 1; height: 1px; background: var(--fog); }
+
+/* ---------- 写一张卡：贴在页上的纸条 ---------- */
+.compose { display: grid; grid-template-columns: minmax(0,1fr) 280px; gap: 46px; padding-top: 34px; }
+.note-paper {
+  background: var(--paper-deep);
+  border-left: 3px solid var(--tide);
+  padding: 26px 28px 22px;
+}
+.note-paper.tint-rain { border-left-color: var(--fog); }
+.note-paper.tint-dusk { border-left-color: var(--ink); }
+.note-paper textarea {
+  width: 100%; min-height: 148px; resize: vertical;
+  border: none; background: none;
+  font-family: var(--serif); font-size: 16.5px; line-height: 2;
+  color: var(--ink);
+}
+.note-paper textarea:focus { outline: none; }
+.note-paper:focus-within { outline: 2px solid var(--buoy); outline-offset: 4px; }
+.tint-row { margin-top: 20px; display: flex; align-items: center; gap: 14px; }
+.tint-row .label { font-family: var(--mono); font-size: 11.5px; letter-spacing: .12em; color: var(--ink-soft); }
+.tint-dot {
+  width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
+  border: 1px solid rgba(30,42,43,.25); padding: 0;
+}
+.tint-dot.sea  { background: var(--tide); }
+.tint-dot.rain { background: var(--fog); }
+.tint-dot.dusk { background: var(--ink); }
+.tint-dot[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+.tint-dot:focus-visible { outline: 2px solid var(--buoy); outline-offset: 3px; }
+.compose-side h3 { font-size: 15px; font-weight: 600; letter-spacing: .06em; margin-bottom: 12px; }
+.compose-side p { font-size: 14.5px; color: var(--ink-soft); line-height: 1.95; }
+.compose-side dl { margin-top: 22px; font-size: 13.5px; color: var(--ink-soft); }
+.compose-side dt { font-family: var(--mono); font-size: 11.5px; letter-spacing: .1em; color: var(--tide); margin-top: 14px; }
+.compose-side dd { margin-top: 3px; }
+
+/* ---------- 规范页 ---------- */
+.spec { padding-top: 34px; }
+.spec h3 {
+  font-size: 15px; font-weight: 600; letter-spacing: .12em;
+  color: var(--ink); margin-bottom: 16px;
+}
+.spec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 40px; }
+.swatches { display: flex; flex-direction: column; gap: 12px; }
+.swatch { display: flex; align-items: center; gap: 14px; }
+.swatch .chip { width: 40px; height: 40px; flex: none; border: 1px solid rgba(30,42,43,.15); }
+.swatch .name { font-size: 14px; }
+.swatch .hex { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); letter-spacing: .06em; }
+.swatch .use { font-size: 12.5px; color: var(--ink-soft); margin-left: auto; }
+.type-spec { display: flex; flex-direction: column; gap: 14px; }
+.type-row { border-bottom: 1px solid var(--fog); padding-bottom: 12px; }
+.type-row .meta { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; color: var(--ink-soft); }
+.type-row .sample-serif { font-family: var(--serif); font-size: 19px; color: var(--ink); }
+.type-row .sample-mono { font-family: var(--mono); font-size: 16px; color: var(--ink); letter-spacing: .05em; }
+.refuse { margin-top: 46px; border-top: 1px solid var(--tide); padding-top: 26px; }
+.refuse h3 { letter-spacing: .06em; }
+.refuse ul { list-style: none; display: grid; gap: 11px; grid-template-columns: repeat(auto-fit, minmax(300px,1fr)); }
+.refuse li {
+  font-size: 14px; color: var(--ink-soft); line-height: 1.8;
+  padding-left: 18px; position: relative;
+}
+.refuse li::before {
+  content: "×"; position: absolute; left: 0; top: 0;
+  color: var(--buoy); font-family: var(--mono);
+}
+.refuse li b { color: var(--ink); font-weight: 600; }
+
+/* ---------- 焦点可见 / 动效克制 ---------- */
+a:focus-visible, button:focus-visible { outline: 2px solid var(--buoy); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .draw { animation: none; stroke-dashoffset: 0; }
+  .detail-inner { animation: none; }
+}
+
+/* ---------- 窄屏 ---------- */
+@media (max-width: 780px) {
+  .sheet { padding: 0 20px 64px; }
+  .hero { grid-template-columns: 1fr; gap: 30px; padding-top: 32px; }
+  .hero h2 { font-size: 33px; }
+  .compose { grid-template-columns: 1fr; gap: 30px; }
+  .brandbar { flex-wrap: wrap; gap: 14px; }
+  .brandnav { margin-left: 0; gap: 16px; }
+  .ledger thead { display: none; }
+  .ledger tbody tr { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding: 16px 0; border-bottom: 1px solid var(--fog); }
+  .ledger tbody td { border: none; padding: 0; }
+  .ledger tbody td.col-level { grid-column: 1; width: auto; padding-left: 26px; font-size: 12px; }
+  .ledger tbody td.col-level::before { top: 12px; }
+  .ledger tbody td.col-time { grid-column: 2; grid-row: 1; text-align: right; padding-top: 0; }
+  .ledger tbody td.col-text { grid-column: 1 / -1; padding-top: 6px; }
+  .ledger tbody td.col-tint { grid-column: 1; grid-row: 3; padding-top: 8px; }
+  .ledger tbody td.col-state { grid-column: 2; grid-row: 3; text-align: right; padding-top: 6px; }
+  .ledger-wrap::before { top: 12px; }
+  .ledger tbody tr.detail { display: block; }
+  .detail-inner { padding-left: 18px; }
+  .proposal { padding: 18px 20px; }
+  .proposal nav { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ 提案说明（只有这一块是提案纸，其余是产品本体） ============ -->
+<header class="proposal">
+  <h1>潮汐簿 · 孤岛浪花</h1>
+  <p class="note">视觉提案。把「看过即消失」变成可读的度量：海不出现为蓝色，只出现为刻度与记录。衬线是人说的话，等宽是系统记的账。</p>
+  <nav>
+    <a href="#enter">登岛</a>
+    <a href="#sea">卡片海</a>
+    <a href="#island">我的孤岛</a>
+    <a href="#compose">写一张卡</a>
+    <a href="#spec">规范</a>
+  </nav>
+</header>
+
+<!-- ============ 页一 · 登岛 ============ -->
+<section class="sheet" id="enter">
+  <div class="running-head"><span>潮汐簿</span><span class="folio">页一</span><span class="rule"></span><span>登岛</span></div>
+
+  <div class="brandbar">
+    <div class="brand">孤岛浪花</div>
+    <nav class="brandnav">
+      <a href="#sea">卡片海</a>
+      <a href="#island">我的孤岛</a>
+    </nav>
+  </div>
+
+  <div class="hero">
+    <div>
+      <h2>浪花<br />只光顾一次</h2>
+      <p class="verse">每个人都是一座孤岛。写下来的话会变成一朵浪花，漂进某一片海，被某一个人看到一次，然后永远退去。你不知道它来自哪儿，它也不会再来。</p>
+
+      <div class="field">
+        <label for="phone">手机号 · 你在这片海上的信标</label>
+        <input id="phone" type="tel" inputmode="numeric" maxlength="11" placeholder="11 位手机号" autocomplete="tel" />
+      </div>
+      <div class="otp-row">
+        <div class="field">
+          <label for="code">验证码</label>
+          <input id="code" type="text" inputmode="numeric" maxlength="6" placeholder="6 位验证码" autocomplete="one-time-code" />
+        </div>
+        <button type="button" class="code-btn">获取验证码</button>
+      </div>
+      <button type="button" class="submit">登 岛</button>
+      <p class="footnote">不需要密码。验证码到了，你就有了岛。<br />登上来的第一件事，是看看今天海上有什么。</p>
+    </div>
+
+    <figure class="tidechart">
+      <figcaption><span>半日潮 · 今日潮汐</span><span>观测点：孤岛</span></figcaption>
+      <svg viewBox="0 0 720 250" role="img" aria-label="今日半日潮曲线：两次高潮分别在 01:36 与 14:01，潮位 2.40 米；两次低潮在 07:49 与 20:14，潮位负 0.30 米">
+        <line class="tide-datum" x1="34" y1="165.1" x2="686" y2="165.1" />
+        <text class="tide-axis" x="690" y="162">0.0 m 基准面</text>
+
+        <path class="tide-fill" d="M 34.0,77.7 L 47.6,68.2 L 61.2,62.0 L 74.8,59.3 L 88.3,60.5 L 101.9,65.3 L 115.5,73.6 L 129.1,84.7 L 142.7,98.0 L 156.2,112.6 L 169.8,127.6 L 183.4,142.1 L 197.0,155.1 L 210.6,165.7 L 224.2,173.4 L 237.8,177.6 L 251.3,178.1 L 264.9,174.8 L 278.5,167.9 L 292.1,157.9 L 305.7,145.4 L 319.2,131.2 L 332.8,116.2 L 346.4,101.4 L 360.0,87.7 L 373.6,76.0 L 387.2,67.0 L 400.8,61.3 L 414.3,59.2 L 427.9,61.0 L 441.5,66.4 L 455.1,75.2 L 468.7,86.7 L 482.2,100.3 L 495.8,115.0 L 509.4,130.0 L 523.0,144.3 L 536.6,157.0 L 550.2,167.2 L 563.8,174.3 L 577.3,178.0 L 590.9,177.8 L 604.5,173.9 L 618.1,166.5 L 631.7,156.0 L 645.2,143.2 L 658.8,128.8 L 672.4,113.8 L 686.0,99.1 L 686,200 L 34,200 Z" />
+        <path class="tide-curve draw" d="M 34.0,77.7 L 47.6,68.2 L 61.2,62.0 L 74.8,59.3 L 88.3,60.5 L 101.9,65.3 L 115.5,73.6 L 129.1,84.7 L 142.7,98.0 L 156.2,112.6 L 169.8,127.6 L 183.4,142.1 L 197.0,155.1 L 210.6,165.7 L 224.2,173.4 L 237.8,177.6 L 251.3,178.1 L 264.9,174.8 L 278.5,167.9 L 292.1,157.9 L 305.7,145.4 L 319.2,131.2 L 332.8,116.2 L 346.4,101.4 L 360.0,87.7 L 373.6,76.0 L 387.2,67.0 L 400.8,61.3 L 414.3,59.2 L 427.9,61.0 L 441.5,66.4 L 455.1,75.2 L 468.7,86.7 L 482.2,100.3 L 495.8,115.0 L 509.4,130.0 L 523.0,144.3 L 536.6,157.0 L 550.2,167.2 L 563.8,174.3 L 577.3,178.0 L 590.9,177.8 L 604.5,173.9 L 618.1,166.5 L 631.7,156.0 L 645.2,143.2 L 658.8,128.8 L 672.4,113.8 L 686.0,99.1" />
+
+        <circle class="tide-dot" cx="77.5" cy="59.2" r="3.4" />
+        <text class="tide-label" x="77.5" y="44" text-anchor="middle">01:36 +2.40</text>
+        <circle class="tide-dot" cx="414.9" cy="59.2" r="3.4" />
+        <text class="tide-label" x="414.9" y="44" text-anchor="middle">14:01 +2.40</text>
+        <circle class="tide-dot-low" cx="246.2" cy="178.4" r="2.8" />
+        <text class="tide-label low" x="246.2" y="196" text-anchor="middle">07:49 −0.30</text>
+        <circle class="tide-dot-low" cx="583.6" cy="178.4" r="2.8" />
+        <text class="tide-label low" x="583.6" y="196" text-anchor="middle">20:14 −0.30</text>
+
+        <text class="tide-axis" x="34" y="222">00:00</text>
+        <text class="tide-axis" x="197" y="222" text-anchor="middle">06:00</text>
+        <text class="tide-axis" x="360" y="222" text-anchor="middle">12:00</text>
+        <text class="tide-axis" x="523" y="222" text-anchor="middle">18:00</text>
+        <text class="tide-axis" x="686" y="222" text-anchor="end">24:00</text>
+      </svg>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ 页二 · 卡片海 ============ -->
+<section class="sheet" id="sea">
+  <div class="running-head"><span>潮汐簿</span><span class="folio">页二</span><span class="rule"></span><span>卡片海</span></div>
+
+  <div class="brandbar">
+    <div class="brand">孤岛浪花</div>
+    <nav class="brandnav">
+      <a href="#sea" aria-current="page">卡片海</a>
+      <a href="#island">我的孤岛</a>
+    </nav>
+    <button type="button" class="leave">离岛</button>
+  </div>
+
+  <div class="sea-note">
+    <span>此刻潮位 <span class="now">+2.40 m</span></span>
+    <span class="rule"></span>
+    <span>海面上还有 4 朵浪花</span>
+  </div>
+
+  <div class="ledger-wrap">
+    <table class="ledger">
+      <caption class="sr-only">当前海面上的浪花，按漂来时间排序。读过的行会留下一道水痕。</caption>
+      <thead>
+        <tr>
+          <th class="col-level">潮位</th>
+          <th class="col-time">时刻</th>
+          <th class="col-tint">潮色</th>
+          <th class="col-text">字</th>
+          <th class="col-state">状态</th>
+        </tr>
+      </thead>
+      <tbody id="sea-rows">
+        <tr class="row major" style="--len:22px" data-level="2.4" data-time="21:14" data-tint="海">
+          <td class="col-level">2.4 m</td>
+          <td class="col-time">21:14</td>
+          <td class="col-tint"><i class="tint-mark tint-sea" title="海"></i></td>
+          <td class="col-text">
+            <button type="button" class="row-open">今天在图书馆坐了很久，什么也没写出来。但我觉得挺好的。</button>
+          </td>
+          <td class="col-state"><span class="state-unread">未读</span></td>
+        </tr>
+        <tr class="row" style="--len:15px" data-level="1.7" data-time="20:02" data-tint="雨">
+          <td class="col-level">1.7 m</td>
+          <td class="col-time">20:02</td>
+          <td class="col-tint"><i class="tint-mark tint-rain" title="雨"></i></td>
+          <td class="col-text">
+            <button type="button" class="row-open">想说但没说出口的话：你今天穿的那件外套挺好看。</button>
+          </td>
+          <td class="col-state"><span class="state-unread">未读</span></td>
+        </tr>
+        <tr class="row major" style="--len:24px" data-level="0.9" data-time="19:47" data-tint="海">
+          <td class="col-level">0.9 m</td>
+          <td class="col-time">19:47</td>
+          <td class="col-tint"><i class="tint-mark tint-sea" title="海"></i></td>
+          <td class="col-text">
+            <button type="button" class="row-open">雨要下了，你带伞了吗？我没带。</button>
+          </td>
+          <td class="col-state"><span class="state-unread">未读</span></td>
+        </tr>
+        <tr class="row" style="--len:11px" data-level="0.3" data-time="18:20" data-tint="暮">
+          <td class="col-level">0.3 m</td>
+          <td class="col-time">18:20</td>
+          <td class="col-tint"><i class="tint-mark tint-dusk" title="暮"></i></td>
+          <td class="col-text">
+            <button type="button" class="row-open">我妈最近学会发语音了，每条三十秒，全是天气预报。</button>
+          </td>
+          <td class="col-state"><span class="state-unread">未读</span></td>
+        </tr>
+        <tr class="row major" style="--len:20px" data-level="-0.2" data-time="16:02" data-tint="海">
+          <td class="col-level">−0.2 m</td>
+          <td class="col-time">16:02</td>
+          <td class="col-tint"><i class="tint-mark tint-sea" title="海"></i></td>
+          <td class="col-text">
+            <button type="button" class="row-open">凌晨三点的便利店店员在补货，灯光特别白。</button>
+          </td>
+          <td class="col-state"><span class="state-read">已读</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="footnote">点开一行是读它。读完按「让它退潮」，它会沉回海底，只在潮位上留一道水痕——那是你来过的那一次。</p>
+</section>
+
+<!-- ============ 页三 · 我的孤岛 ============ -->
+<section class="sheet" id="island">
+  <div class="running-head"><span>潮汐簿</span><span class="folio">页三</span><span class="rule"></span><span>我的孤岛</span></div>
+
+  <div class="brandbar">
+    <div class="brand">孤岛浪花</div>
+    <nav class="brandnav">
+      <a href="#sea">卡片海</a>
+      <a href="#island" aria-current="page">我的孤岛</a>
+    </nav>
+    <button type="button" class="leave">离岛</button>
+  </div>
+
+  <p class="footnote" style="margin-top:22px">只有你能回到这里。写下的字留在这座岛上，海那边的人只带走一次。</p>
+
+  <div class="ledger-wrap">
+    <table class="ledger">
+      <caption class="sr-only">我写过的卡片，按时间倒序，全部已读。</caption>
+      <thead>
+        <tr>
+          <th class="col-level">潮位</th>
+          <th class="col-time">时刻</th>
+          <th class="col-tint">潮色</th>
+          <th class="col-text">字</th>
+          <th class="col-state">状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="row major is-read" style="--len:22px" data-tint="海">
+          <td class="col-level">2.1 m</td>
+          <td class="col-time">昨天</td>
+          <td class="col-tint"><i class="tint-mark tint-sea" title="海"></i></td>
+          <td class="col-text"><button type="button" class="row-open">第一次发帖，写给一个不会看到的人。</button></td>
+          <td class="col-state"><span class="state-read">留痕</span></td>
+        </tr>
+        <tr class="row is-read" style="--len:14px" data-tint="暮">
+          <td class="col-level">1.2 m</td>
+          <td class="col-time">前天</td>
+          <td class="col-tint"><i class="tint-mark tint-dusk" title="暮"></i></td>
+          <td class="col-text"><button type="button" class="row-open">今天把这件事做完了，没人知道，但做完了。</button></td>
+          <td class="col-state"><span class="state-read">留痕</span></td>
+        </tr>
+        <tr class="row major is-read" style="--len:20px" data-tint="雨">
+          <td class="col-level">0.4 m</td>
+          <td class="col-time">上周</td>
+          <td class="col-tint"><i class="tint-mark tint-rain" title="雨"></i></td>
+          <td class="col-text"><button type="button" class="row-open">你要是也在就好了。</button></td>
+          <td class="col-state"><span class="state-read">留痕</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 页四 · 写一张卡 ============ -->
+<section class="sheet" id="compose">
+  <div class="running-head"><span>潮汐簿</span><span class="folio">页四</span><span class="rule"></span><span>写一张卡</span></div>
+
+  <div class="brandbar">
+    <div class="brand">孤岛浪花</div>
+    <nav class="brandnav">
+      <a href="#sea">卡片海</a>
+      <a href="#island">我的孤岛</a>
+    </nav>
+  </div>
+
+  <div class="compose">
+    <div>
+      <div class="note-paper" id="note-paper">
+        <label class="sr-only" for="card-text">卡片内容</label>
+        <textarea id="card-text" placeholder="写点什么。它会被某一个人看到一次。"></textarea>
+        <div class="tint-row">
+          <span class="label">潮色 · 浓淡三色</span>
+          <button type="button" class="tint-dot sea" aria-pressed="true" aria-label="潮色：海"></button>
+          <button type="button" class="tint-dot rain" aria-pressed="false" aria-label="潮色：雨"></button>
+          <button type="button" class="tint-dot dusk" aria-pressed="false" aria-label="潮色：暮"></button>
+        </div>
+      </div>
+      <button type="button" class="submit">放进海里</button>
+    </div>
+
+    <aside class="compose-side">
+      <h3>放进去会发生什么</h3>
+      <p>卡片会漂进当前这片海。它会被随机某一个人读到一次——读完就沉下去，不再浮起来。</p>
+      <dl>
+        <dt>谁会看到</dt>
+        <dd>不认识的人。此刻在海上的那些人。</dd>
+        <dt>你能看到吗</dt>
+        <dd>不能。你写下的字会留在自己的岛上，但海上漂的那一份你看不到。</dd>
+        <dt>会被记住吗</dt>
+        <dd>不会。除了对方海面上的一道水痕，什么都不留。</dd>
+      </dl>
+    </aside>
+  </div>
+</section>
+
+<!-- ============ 页五 · 规范 ============ -->
+<section class="sheet spec" id="spec">
+  <div class="running-head"><span>潮汐簿</span><span class="folio">页五</span><span class="rule"></span><span>规范</span></div>
+
+  <div class="spec-grid">
+    <div>
+      <h3>色</h3>
+      <div class="swatches">
+        <div class="swatch"><span class="chip" style="background:#E9E5D9"></span><span class="name">棉纸</span><span class="hex">#E9E5D9</span><span class="use">底色，带纤维</span></div>
+        <div class="swatch"><span class="chip" style="background:#1E2A2B"></span><span class="name">焦墨</span><span class="hex">#1E2A2B</span><span class="use">正文与标题</span></div>
+        <div class="swatch"><span class="chip" style="background:#2B4C4E"></span><span class="name">深潮</span><span class="hex">#2B4C4E</span><span class="use">水位尺、表头、结构线</span></div>
+        <div class="swatch"><span class="chip" style="background:#4F6B5C"></span><span class="name">海藻</span><span class="hex">#4F6B5C</span><span class="use">已读、水痕、次级信息</span></div>
+        <div class="swatch"><span class="chip" style="background:#A8522A"></span><span class="name">浮标</span><span class="hex">#A8522A</span><span class="use">唯一强调色，只标「此刻」</span></div>
+        <div class="swatch"><span class="chip" style="background:#BFC7C2"></span><span class="name">雾灰</span><span class="hex">#BFC7C2</span><span class="use">刻度与发丝线</span></div>
+      </div>
+      <p style="margin-top:20px;font-size:13.5px;color:var(--ink-soft);line-height:1.9">
+        潮色不新增色相：<b style="color:var(--ink)">墨分五色取其三</b>——海是浓墨、雨是淡墨、暮是焦墨。
+      </p>
+      <div class="swatches" style="margin-top:12px">
+        <div class="swatch"><span class="chip" style="background:#2B4C4E"></span><span class="name">海</span><span class="hex">浓墨</span><span class="use">tint-sea</span></div>
+        <div class="swatch"><span class="chip" style="background:#BFC7C2"></span><span class="name">雨</span><span class="hex">淡墨</span><span class="use">tint-rain</span></div>
+        <div class="swatch"><span class="chip" style="background:#1E2A2B"></span><span class="name">暮</span><span class="hex">焦墨</span><span class="use">tint-dusk</span></div>
+      </div>
+    </div>
+
+    <div>
+      <h3>字</h3>
+      <div class="type-spec">
+        <div class="type-row">
+          <div class="meta">衬线 · 人说的话</div>
+          <div class="sample-serif">写在纸上的那一行</div>
+        </div>
+        <div class="type-row">
+          <div class="meta">等宽 · 系统记的账</div>
+          <div class="sample-mono">21:14 · 2.4 m · 04</div>
+        </div>
+        <div class="type-row">
+          <div class="meta">尺度</div>
+          <div class="sample-serif" style="font-size:15px">主标题 44/1.16 · 记录正文 16.5/1.9 · 元信息 12 等宽</div>
+        </div>
+        <div class="type-row">
+          <div class="meta">行宽</div>
+          <div class="sample-serif" style="font-size:15px;color:var(--ink-soft)">正文 ≤ 33 汉字，左对齐</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3>版式</h3>
+      <div class="type-spec">
+        <div class="type-row">
+          <div class="meta">轴</div>
+          <div class="sample-serif" style="font-size:15px">左边一条水位尺，所有内容挂在尺右</div>
+        </div>
+        <div class="type-row">
+          <div class="meta">结构</div>
+          <div class="sample-serif" style="font-size:15px">卡片海是一张表，列是潮位 / 时刻 / 字 / 状态</div>
+        </div>
+        <div class="type-row">
+          <div class="meta">交互</div>
+          <div class="sample-serif" style="font-size:15px">点行原地展开，读完按「让它退潮」</div>
+        </div>
+        <div class="type-row">
+          <div class="meta">动效</div>
+          <div class="sample-serif" style="font-size:15px">曲线画一次；其余动效只回应人的动作</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="refuse">
+    <h3>这份设计拒绝了什么</h3>
+    <ul>
+      <li><b>暖奶油底 + 陶土色</b>——换成灰宣纸与浮标锈红，后者只标「此刻」一个语义</li>
+      <li><b>蓝色渐变的海</b>——海改为刻度与记录，海不作为颜色出现</li>
+      <li><b>圆角卡片 + 柔影 + 渐变装饰</b>——记录行无卡片、无阴影、无渐变</li>
+      <li><b>毛玻璃顶栏</b>——改为一条实线，顶栏只是书眉</li>
+      <li><b>报纸密排细线</b>——线是水位尺与记录分隔，密度低，留白大</li>
+      <li><b>全大写标签 / 中点连接 / 箭头尾巴</b>——表头用中文列名，数值用等宽，界面话不用箭头</li>
+      <li><b>为三种潮色新增三个色相</b>——改用同一支墨的浓、淡、焦三色，不多一个颜色</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+// 潮色切换：只改纸条的左边色
+document.querySelectorAll('.tint-dot').forEach(function (dot) {
+  dot.addEventListener('click', function () {
+    document.querySelectorAll('.tint-dot').forEach(function (d) { d.setAttribute('aria-pressed', 'false'); });
+    dot.setAttribute('aria-pressed', 'true');
+    var paper = document.getElementById('note-paper');
+    paper.classList.remove('tint-rain', 'tint-dusk');
+    var kind = dot.className.replace('tint-dot ', '');
+    if (kind !== 'sea') paper.classList.add('tint-' + kind);
+  });
+});
+
+// 卡片海：展开 → 退潮 → 留水痕
+var SEA_TEXT = {
+  '2.4 m': '今天在图书馆坐了很久，什么也没写出来。但我觉得挺好的。写下来只是想让它存在一会儿，像把一块石头留在沙滩上——潮水会来，但那是明天的事了。',
+  '1.7 m': '想说但没说出口的话：你今天穿的那件外套挺好看。想了三遍要不要发出来，最后还是算了。有些话留在嘴里比说出来更像话。',
+  '0.9 m': '雨要下了，你带伞了吗？我没带。站在便利店门口等雨停的时候，忽然想给一个陌生人写句话，也不知道为什么。',
+  '0.3 m': '我妈最近学会发语音了，每条三十秒，全是天气预报。她大概以为多说几次我就会回一句。'
+};
+
+document.querySelectorAll('#sea-rows .row').forEach(function (row) {
+  var openBtn = row.querySelector('.row-open');
+  if (!openBtn) return;
+  var level = row.querySelector('.col-level').textContent.trim();
+  var state = row.querySelector('.col-state');
+
+  openBtn.addEventListener('click', function () {
+    if (row.classList.contains('is-read')) return;
+
+    var detail = document.createElement('tr');
+    detail.className = 'detail';
+    var cell = document.createElement('td');
+    cell.colSpan = 5;
+    cell.innerHTML =
+      '<div class="detail-inner">' +
+      '<p>' + (SEA_TEXT[level] || openBtn.textContent) + '</p>' +
+      '<div class="detail-meta">漂来于 ' + row.querySelector('.col-time').textContent + ' · 来自一座没有名字的岛</div>' +
+      '<button type="button" class="tide-btn">读完了，让它退潮</button>' +
+      '</div>';
+    detail.appendChild(cell);
+    row.parentNode.insertBefore(detail, row.nextSibling);
+
+    detail.querySelector('.tide-btn').addEventListener('click', function () {
+      detail.remove();
+      row.classList.add('is-read');
+      state.innerHTML = '<span class="state-read">已读</span>';
+      openBtn.textContent = openBtn.textContent.split('　')[0];
+    });
+  });
+});
+</script>
+</body>
+</html>

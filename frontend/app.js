@@ -52,7 +52,21 @@
   }
 
   function pickTint(id) { return TINTS[Math.abs(Number(id)) % TINTS.length]; }
-  function tilt(id) { return ((Math.abs(Number(id)) * 37) % 24 - 12) / 10; } // -1.2° ~ 1.2°
+
+  // 把 ISO 时间转成 HH:MM，海上的时间只精确到分钟
+  function clockTime(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    function p(n) { return n < 10 ? '0' + n : '' + n; }
+    return p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  // 记录编号：NO. + id（不足 4 位补零，超过 4 位原样保留）
+  function recordNo(id) {
+    var n = String(Math.abs(Number(id) || 0));
+    while (n.length < 4) n = '0' + n;
+    return 'NO.' + n;
+  }
 
   function shuffle(arr) {
     for (var i = arr.length - 1; i > 0; i--) {
@@ -315,6 +329,7 @@
   function loadSea(quiet) {
     if (!me) return Promise.resolve();
     var overflowIds = null; // 已看卡片超过 250 张时，退化为拉取后本地过滤
+    var seenCount = 0;      // 已看过的卡片总数，供仪表台读数用
 
     return cloud.database.from('card_seen').select('card_id').then(function (seenRes) {
       if (seenRes.error) {
@@ -323,6 +338,7 @@
       }
       var seenIds = new Set();
       (seenRes.data || []).forEach(function (r) { seenIds.add(Number(r.card_id)); });
+      seenCount = seenIds.size;
 
       var q = cloud.database.from('cards')
         .select('id, content, tint, created_at')
@@ -355,6 +371,7 @@
         toast('有 ' + arrived + ' 朵新的浪花拍向你的岛');
       }
       updateSeaCount();
+      updateReadouts(seenCount);
     }).catch(function () {
       if (!quiet) toast('海面暂时看不清，请稍后再试');
     });
@@ -393,6 +410,19 @@
   function updateSeaCount() {
     var n = seaCards.length;
     $('sea-count').textContent = n === 0 ? '海面很安静……' : '海面上泊着 ' + n + ' 朵浪';
+    // 仪表台联动：主读数 + 海面可见
+    if ($('gauge-count')) $('gauge-count').textContent = n;
+    if ($('ro-visible')) $('ro-visible').textContent = n + ' 条';
+  }
+
+  // 仪表台：今日已读 / 我的记录
+  function updateReadouts(seenCount, myCount) {
+    if (seenCount !== undefined && $('ro-read')) {
+      $('ro-read').textContent = seenCount + ' 条';
+    }
+    if (myCount !== undefined && $('ro-mine')) {
+      $('ro-mine').textContent = myCount + ' 条';
+    }
   }
 
   function buildCardEl(c, opts) {
@@ -401,7 +431,20 @@
     var tint = c.tint && TINTS.indexOf(c.tint) >= 0 ? c.tint : pickTint(id);
     el.className = 'card tint-' + tint;
     el.dataset.id = c.id;
-    el.style.setProperty('--tilt', tilt(id) + 'deg');
+
+    // 卡头：状态 / 编号 / 时刻
+    var head = document.createElement('div');
+    head.className = 'head-line';
+    var st = document.createElement('span');
+    st.className = opts.island ? 'st read' : 'st';
+    st.textContent = opts.island ? '已漂出' : '未读';
+    var no = document.createElement('span');
+    no.className = 'no';
+    no.textContent = recordNo(id);
+    var t = document.createElement('span');
+    t.className = 'time';
+    t.textContent = clockTime(c.created_at);
+    head.appendChild(st); head.appendChild(no); head.appendChild(t);
 
     var body = document.createElement('p');
     body.className = 'excerpt';
@@ -416,9 +459,11 @@
     var dot = document.createElement('span');
     dot.className = 'dot';
     var from = document.createElement('span');
+    from.className = 'from';
     from.textContent = opts.island ? '写自这座岛' : '来自某座不知名的岛';
     meta.appendChild(time); meta.appendChild(dot); meta.appendChild(from);
 
+    el.appendChild(head);
     el.appendChild(body);
     el.appendChild(meta);
 
@@ -438,35 +483,39 @@
     detail.className = 'detail-card tint-' + tint;
     $('detail-text').textContent = c.content;
     $('detail-time').textContent = relTime(c.created_at);
+    $('detail-no').textContent = recordNo(id);
     $('card-overlay').classList.add('on');
 
     // 点开即记为看过；若记录失败，合上后卡片仍留在海面
+    // __seen 三态：undefined=记档中，true=已记住，false=记档失败
+    card.__seen = undefined;
     cloud.database.from('card_seen').insert({ card_id: id }).then(function (res) {
       if (res.error && res.error.code !== '23505') {
         toast('这朵浪花没能记下你的足迹，合上后它还会在这里');
         card.__seen = false;
+        // 如果用户已经抢先合上了，此刻才判定为"没记住"，卡片留在海面
+        if (card.__closed) revealCard(card);
         return;
       }
       card.__seen = true;
       seaCards = seaCards.filter(function (x) { return Number(x.id) !== id; });
       updateSeaCount();
+      // 用户可能读得很快，在记档返回前就点了合上——此时才执行退场
+      if (card.__closed) revealCard(card);
     }).catch(function () {
       toast('这朵浪花没能记下你的足迹，合上后它还会在这里');
       card.__seen = false;
+      if (card.__closed) revealCard(card);
     });
   }
 
-  function closeCard() {
-    $('card-overlay').classList.remove('on');
-    var c = activeCard;
-    activeCard = null;
-    if (!c || !c.__seen) return;
-
+  // 卡片退场：加消退动画 → 从海面移除 → 提示
+  function revealCard(c) {
     var el = $('card-grid').querySelector('.card[data-id="' + c.id + '"]');
     renderedSeaIds.delete(Number(c.id));
     if (el) {
       el.classList.add('dissolving');
-      setTimeout(function () { el.remove(); }, 720);
+      setTimeout(function () { el.remove(); }, 800);
       setTimeout(function () { toast('这朵浪花退去了，不会再光顾这座岛'); }, 260);
     }
     updateSeaCount();
@@ -476,7 +525,25 @@
         if (seaCards.length === 0 && $('card-grid').children.length === 0) {
           $('sea-empty').classList.add('on');
         }
-      }, 760);
+      }, 840);
+    }
+  }
+
+  function closeCard() {
+    $('card-overlay').classList.remove('on');
+    var c = activeCard;
+    activeCard = null;
+    if (!c) return;
+
+    if (c.__seen === true) {
+      // 已确认记档，直接退场
+      revealCard(c);
+    } else if (c.__seen === undefined) {
+      // 记档还在路上：先关弹层，等 insert 返回后再决定退场还是留下
+      c.__closed = true;
+    } else {
+      // 记档失败，卡片留在海面（前端已提示过）
+      c.__closed = true;
     }
   }
 
@@ -560,6 +627,7 @@
           grid.appendChild(el);
         });
         $('island-empty').classList.toggle('on', !res.data || res.data.length === 0);
+        updateReadouts(undefined, (res.data || []).length);
       }).catch(function () {
         if (!quiet) toast('没能取回你的往日卡片，请稍后再试');
       });

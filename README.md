@@ -11,6 +11,19 @@
 
 ![卡片海](assets/screenshot-sea.png)
 
+## 视觉：夜航信号
+
+整个界面是一台**夜间的海面观测站**：
+
+- **人说的话用衬线字**（宋体系，系统自带，零加载成本），**系统记的账用等宽字**
+  （IBM Plex Mono）——一眼能分清哪句是卡片、哪句是读数。
+- **配色只有六支**：船体黑（海）、舱室灰（卡片）、骨架线、浪沫白（正文）、
+  刻度灰（次要信息）、**信号琥珀（唯一强调色，只标"此刻"）**，外加一个活体绿标"未读"。
+- **左侧是仪表台**：潮位曲线、可见条数、今日已读、我的记录、信标状态；
+  右侧是信流，每条卡片带 `NO.` 编号、精确到分钟的靠岸时刻、一条代表分类的潮色脊。
+- **卡片读走时不是简单淡出**，而是"信号衰减"——模糊、失色、横移、消散，
+  像浮标的讯号在噪声里沉下去。
+
 ## 在线访问
 
 - **[孤岛浪花 · 真实版](https://island-wave-cards.app.workbuddy.host/?sharecode=R7PJGFFCEZ)** —— 完整版：手机号 / 微信登录后放卡入海，偶遇陌生人的浪花，看过即消失（WorkBuddy 托管，全球可访问）。
@@ -28,13 +41,16 @@ island-wave-cards/
 ├── frontend/               # 前端（零依赖静态站，无需构建）
 │   ├── index.html          #   入口页：登录 / 卡片海 / 我的孤岛 / 发布弹窗
 │   ├── demo.html           #   本地演示版（引用 local-backend.js，无需云端）
-│   ├── styles.css          #   海面与宣纸风格样式
+│   ├── styles.css          #   夜航信号风格样式（配色变量集中在 :root）
 │   ├── app.js              #   前端逻辑：登录守卫、卡片海、一次性可见、发布
 │   ├── config.js           #   云端公共配置（公开标识，非密钥）
 │   └── local-backend.js    #   本地演示后端（localStorage 模拟云端 API）
 ├── backend/                # 本地静态服务器（零依赖，仅用于本地预览/托管）
 │   ├── server.js
 │   └── package.json
+├── test/                   # 集成冒烟测试（jsdom 驱动 demo 版全流程）
+│   └── smoke.js
+├── design/                 # 视觉方向原型（三版对比稿，供设计决策留档）
 ├── assets/                 # README 截图
 ├── .github/workflows/      # GitHub Pages 自动部署
 ├── .gitignore
@@ -54,6 +70,17 @@ npm start          # 默认 http://localhost:3000，可用 PORT=8080 覆盖
 ```
 
 > 注：`frontend/config.js` 已填入「孤岛浪花」应用（2026-11-03 激活）的真实云服务配置，线上真实版开箱即用；`demo.html` 仍可零门槛试玩。
+
+## 测试
+
+改动前端后可以跑一遍集成冒烟测试，它会用 jsdom 真实驱动 demo 版走完整流程
+（登岛 → 卡片海 → 写卡 → 打开卡片 → 浪花退去 → 我的孤岛 → 离岛），
+并断言渲染结构与交互联动：
+
+```bash
+npm install jsdom          # 唯一依赖
+node test/smoke.js
+```
 
 ## 架构说明
 

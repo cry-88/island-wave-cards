@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>原型 C · 观测站仪表 — 孤岛浪花</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+SC:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   原型 C · 观测站仪表
+   主张：把"看过即消失"变成可读的数据。
+   海不是画面，是一组读数；卡片不是信，是一条观测记录。
+   ============================================================ */
+
+:root {
+  --floor:   #F2F2EE;   /* 地面：冷白 */
+  --panel:   #FFFFFF;
+  --panel-2: #FAFAF7;
+  --rail:    #E2E2DB;   /* 刻度线 */
+  --rail-2:  #CDCDC4;
+  --ink:     #16181A;   /* 主字 */
+  --ink-2:   #5C5F60;   /* 次字 */
+  --ink-3:   #93969A;   /* 三级字 */
+  --signal:  #E4572E;   /* 信号橙：唯一强调 */
+  --s1: #2F6F7E;
+  --s2: #B0753A;
+  --s3: #7A5B8C;
+  --s4: #3F6F4E;
+  --s5: #A8522A;
+  --s6: #9A6B2F;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --sans: "IBM Plex Sans SC", "PingFang SC", system-ui, sans-serif;
+  --serif: "Noto Serif SC", "Songti SC", serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--floor);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+::selection { background: rgba(228,87,46,.2); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* ---------- 原型条 ---------- */
+.protobar {
+  position: sticky; top: 0; z-index: 95;
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 16px; background: #16181A; color: #9A9DA0;
+  font-family: var(--mono); font-size: 12px;
+}
+.protobar b { color: var(--signal); font-weight: 500; letter-spacing: .08em; }
+.protobar .sp { margin-left: auto; display: flex; gap: 6px; }
+.protobar a { color: #BFC2C4; text-decoration: none; padding: 3px 10px; border: 1px solid #3A3D3F; border-radius: 2px; }
+.protobar a:hover { background: var(--signal); color: #fff; border-color: var(--signal); }
+.protobar a.on { background: var(--signal); color: #fff; border-color: var(--signal); }
+
+/* ---------- 顶栏 ---------- */
+.bar {
+  position: sticky; top: 40px; z-index: 50;
+  display: flex; align-items: stretch; gap: 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--rail-2);
+}
+.bar .cell { padding: 11px 16px; display: flex; align-items: center; border-right: 1px solid var(--rail); }
+.bar .cell.grow { flex: 1; }
+.brand { font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: .12em; }
+.brand em { font-style: normal; color: var(--signal); }
+.nav { display: flex; }
+.nav button {
+  padding: 11px 20px; font-size: 13.5px; color: var(--ink-2);
+  border-right: 1px solid var(--rail); position: relative;
+}
+.nav button:hover { background: var(--panel-2); color: var(--ink); }
+.nav button.on { color: var(--ink); font-weight: 500; background: var(--panel-2); }
+.nav button.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--signal); }
+.bar .id { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+.ghost { padding: 4px 12px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); border: 1px solid var(--rail-2); border-radius: 2px; }
+.ghost:hover { border-color: var(--ink); color: var(--ink); }
+
+/* ---------- 刻度尺条 ---------- */
+.rulerbar {
+  display: flex; align-items: flex-end; gap: 0; height: 26px;
+  padding: 0 24px; background: var(--panel);
+  border-bottom: 1px solid var(--rail-2);
+  overflow: hidden;
+}
+.rulerbar i { display: block; width: 1px; background: var(--rail-2); }
+.rulerbar i.tall { height: 12px; }
+.rulerbar i.mid { height: 7px; }
+.rulerbar i.low { height: 4px; }
+.rulerbar i.hot { background: var(--signal); height: 16px; width: 2px; }
+
+/* ---------- 布局 ---------- */
+.wrap { max-width: 1180px; margin: 0 auto; padding: 22px 24px 96px; }
+.split { display: grid; grid-template-columns: 208px minmax(0,1fr); gap: 26px; }
+@media (max-width: 840px) { .split { grid-template-columns: 1fr; } .side { display: none; } }
+
+/* 左读数栏 */
+.side { position: sticky; top: 122px; align-self: start; }
+.side .box { border: 1px solid var(--rail-2); background: var(--panel); margin-bottom: 12px; }
+.side .box-h {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 11px; border-bottom: 1px solid var(--rail);
+  font-family: var(--mono); font-size: 11px; letter-spacing: .1em; color: var(--ink-2);
+}
+.side .box-h .dot { width: 5px; height: 5px; background: var(--signal); }
+.side .big { padding: 12px 11px 10px; }
+.side .big .n { font-family: var(--mono); font-size: 30px; font-weight: 500; line-height: 1; letter-spacing: -.02em; }
+.side .big .u { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 4px; }
+.side table { width: 100%; border-collapse: collapse; }
+.side td { padding: 6px 11px; font-family: var(--mono); font-size: 11.5px; border-top: 1px solid var(--rail); color: var(--ink-2); }
+.side td.v { text-align: right; color: var(--ink); }
+.side td.v.hot { color: var(--signal); }
+.side td.v.ok { color: var(--s4); }
+.side .chart { padding: 10px 11px 6px; }
+.side .chart svg { display: block; width: 100%; height: 84px; }
+
+/* ---------- 记录表 ---------- */
+.head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.head h1 { font-family: var(--mono); font-size: 15px; font-weight: 600; letter-spacing: .1em; }
+.head .note { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+.head .right { margin-left: auto; font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+.head .right b { color: var(--signal); font-weight: 500; }
+
+.rec {
+  display: grid; grid-template-columns: 76px minmax(0,1fr) auto;
+  background: var(--panel); border: 1px solid var(--rail-2);
+  margin-bottom: 8px;
+  transition: border-color .18s ease;
+  animation: in .4s cubic-bezier(.22,1,.36,1) backwards;
+}
+@keyframes in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.rec:hover { border-color: var(--ink-3); }
+.rec .idx {
+  border-right: 1px solid var(--rail); padding: 13px 10px;
+  font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.rec .idx .no { color: var(--ink-2); }
+.rec .idx .st { color: var(--s4); font-size: 10px; letter-spacing: .06em; }
+.rec .idx .st.read { color: var(--ink-3); }
+.rec .main { padding: 13px 16px 12px; border-left: 4px solid var(--spine, var(--s1)); }
+.rec .txt { font-family: var(--serif); font-size: 15.5px; line-height: 1.95; color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+.rec .meta { display: flex; gap: 12px; margin-top: 9px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); flex-wrap: wrap; }
+.rec .meta .src { color: var(--ink-2); }
+.rec .right {
+  border-left: 1px solid var(--rail); padding: 13px 12px;
+  display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between;
+  font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); text-align: right;
+}
+.rec .right .act { color: var(--signal); border: 1px solid var(--rail-2); padding: 3px 9px; border-radius: 2px; }
+.rec .right .act:hover { border-color: var(--signal); }
+@media (max-width: 620px) {
+  .rec { grid-template-columns: 60px minmax(0,1fr); }
+  .rec .right { grid-column: 1 / -1; border-left: none; border-top: 1px solid var(--rail); flex-direction: row; align-items: center; padding: 8px 12px; }
+}
+
+.empty { border: 1px dashed var(--rail-2); background: var(--panel); padding: 48px 22px; text-align: center; }
+.empty b { display: block; font-family: var(--mono); font-size: 14px; font-weight: 500; letter-spacing: .1em; margin-bottom: 8px; }
+.empty span { font-size: 13px; color: var(--ink-3); }
+
+/* ---------- 投放按钮 ---------- */
+.fab {
+  position: fixed; right: 26px; bottom: 26px; z-index: 60;
+  display: flex; align-items: center; gap: 9px;
+  padding: 12px 20px; font-family: var(--mono); font-size: 13px; letter-spacing: .1em;
+  color: #fff; background: var(--signal); border-radius: 2px;
+  transition: transform .18s ease;
+}
+.fab:hover { transform: translateY(-2px); }
+
+/* ---------- 弹层 ---------- */
+.overlay { position: fixed; inset: 0; z-index: 80; display: none; align-items: center; justify-content: center; padding: 24px; background: rgba(22,24,26,.46); }
+.overlay.on { display: flex; }
+.modal { width: 100%; max-width: 540px; max-height: 88vh; overflow: auto; background: var(--panel); border: 1px solid var(--ink-3); animation: pop .24s cubic-bezier(.22,1,.36,1) both; }
+@keyframes pop { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.modal-h { display: flex; align-items: center; padding: 11px 14px; border-bottom: 1px solid var(--rail-2); font-family: var(--mono); font-size: 12px; letter-spacing: .12em; color: var(--ink-2); }
+.modal-h .x { margin-left: auto; color: var(--ink-3); font-size: 15px; padding: 0 4px; }
+.modal-h .x:hover { color: var(--signal); }
+.modal-b { padding: 16px 14px 14px; }
+.modal-b textarea {
+  width: 100%; min-height: 156px; resize: vertical;
+  padding: 12px; font-family: var(--serif); font-size: 15px; line-height: 1.95;
+  color: var(--ink); background: var(--panel-2); border: 1px solid var(--rail-2); border-radius: 0; outline: none;
+}
+.modal-b textarea:focus { border-color: var(--ink-3); }
+.modal-b textarea::placeholder { color: var(--ink-3); }
+.modal-f { display: flex; align-items: center; gap: 10px; margin-top: 11px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+.bars { display: flex; gap: 6px; margin-left: auto; }
+.bar-dot { width: 14px; height: 14px; border: 1px solid transparent; }
+.bar-dot.sel { border-color: var(--ink); }
+.send { width: 100%; margin-top: 14px; padding: 11px; font-family: var(--mono); font-size: 13px; letter-spacing: .18em; color: #fff; background: var(--signal); border-radius: 2px; }
+.send:hover { filter: brightness(1.06); }
+.detail .full { font-family: var(--serif); font-size: 16.5px; line-height: 2.05; white-space: pre-wrap; }
+.detail .dmeta { display: flex; gap: 12px; margin-top: 16px; padding-top: 11px; border-top: 1px solid var(--rail); font-family: var(--mono); font-size: 11px; color: var(--ink-3); flex-wrap: wrap; }
+.detail .dnote { margin-top: 12px; font-size: 12.5px; color: var(--ink-2); }
+
+/* ---------- 登岛 ---------- */
+#auth { min-height: calc(100vh - 40px); display: grid; grid-template-columns: minmax(0,1fr) minmax(0,.92fr); gap: 52px; align-items: center; max-width: 1000px; margin: 0 auto; padding: 44px 24px 70px; }
+@media (max-width: 780px) { #auth { grid-template-columns: 1fr; gap: 30px; } }
+.auth-visual { border: 1px solid var(--rail-2); background: var(--panel); }
+.auth-visual .vh { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--rail); font-family: var(--mono); font-size: 11px; color: var(--ink-2); letter-spacing: .1em; }
+.auth-visual .vh .dot { width: 5px; height: 5px; background: var(--signal); }
+.auth-visual svg { display: block; width: 100%; height: auto; }
+.auth h1 { font-family: var(--mono); font-size: 26px; font-weight: 600; letter-spacing: .12em; }
+.auth h1 em { font-style: normal; color: var(--signal); }
+.auth .sub { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); margin-top: 6px; letter-spacing: .06em; }
+.auth .lead { margin-top: 18px; font-family: var(--serif); font-size: 15px; line-height: 2.05; color: var(--ink-2); max-width: 24em; }
+.field { margin-top: 15px; }
+.field label { display: block; font-family: var(--mono); font-size: 11px; color: var(--ink-3); letter-spacing: .1em; margin-bottom: 6px; }
+.field input { width: 100%; padding: 10px 12px; font-family: var(--mono); font-size: 14px; color: var(--ink); background: var(--panel); border: 1px solid var(--rail-2); border-radius: 0; outline: none; }
+.field input:focus { border-color: var(--ink-3); }
+.field input::placeholder { color: var(--ink-3); }
+.otp { display: flex; gap: 8px; }
+.otp input { flex: 1; }
+.otp button { flex-shrink: 0; padding: 0 15px; font-family: var(--mono); font-size: 12px; color: var(--ink); background: var(--panel-2); border: 1px solid var(--rail-2); border-radius: 0; }
+.otp button:hover { border-color: var(--ink-3); }
+.login { width: 100%; margin-top: 22px; padding: 12px; font-family: var(--mono); font-size: 13px; letter-spacing: .22em; color: #fff; background: var(--ink); border-radius: 2px; }
+.login:hover { background: #000; }
+.auth-alt { margin-top: 12px; text-align: center; font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+.auth-alt span { color: var(--s4); }
+.auth-note { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--rail-2); font-size: 12.5px; line-height: 1.95; color: var(--ink-3); }
+</style>
+</head>
+<body>
+
+<div class="protobar">
+  <b>原型 C · 观测站仪表</b>
+  <span>孤岛浪花视觉提案 · 可点切换四个界面</span>
+  <span class="sp">
+    <a href="proto-a-night.html">A 夜航</a>
+    <a href="proto-b-postcard.html">B 明信片</a>
+    <a class="on" href="proto-c-station.html">C 仪表</a>
+  </span>
+</div>
+
+<!-- ==================== 登岛 ==================== -->
+<section id="auth">
+  <div class="auth-visual">
+    <div class="vh"><span class="dot"></span>STATION 04 / LIVE FEED</div>
+    <svg viewBox="0 0 420 280" role="img" aria-label="观测站潮位曲线图">
+      <title>观测站潮位曲线</title>
+      <rect width="420" height="280" fill="#FFFFFF"/>
+      <g stroke="#E2E2DB" stroke-width="1">
+        <line x1="52" y1="40" x2="400" y2="40"/><line x1="52" y1="90" x2="400" y2="90"/>
+        <line x1="52" y1="140" x2="400" y2="140"/><line x1="52" y1="190" x2="400" y2="190"/>
+        <line x1="52" y1="240" x2="400" y2="240"/>
+      </g>
+      <g stroke="#E2E2DB" stroke-width="1">
+        <line x1="52" y1="40" x2="52" y2="240"/><line x1="139" y1="40" x2="139" y2="240"/>
+        <line x1="226" y1="40" x2="226" y2="240"/><line x1="313" y1="40" x2="313" y2="240"/>
+        <line x1="400" y1="40" x2="400" y2="240"/>
+      </g>
+      <g fill="#93969A" font-size="8.5" font-family="monospace">
+        <text x="16" y="43">2.0</text><text x="16" y="93">1.5</text><text x="16" y="143">1.0</text>
+        <text x="16" y="193">0.5</text><text x="22" y="243">0.0</text>
+        <text x="48" y="258">00</text><text x="135" y="258">06</text><text x="222" y="258">12</text>
+        <text x="309" y="258">18</text><text x="392" y="258">24</text>
+      </g>
+      <path d="M52,206 C86,196 96,168 124,160 C152,152 166,178 190,176 C214,174 228,136 258,124 C288,112 300,150 324,146 C348,142 368,104 400,92 L400,240 L52,240 Z" fill="#2F6F7E" opacity=".09"/>
+      <path d="M52,206 C86,196 96,168 124,160 C152,152 166,178 190,176 C214,174 228,136 258,124 C288,112 300,150 324,146 C348,142 368,104 400,92" fill="none" stroke="#2F6F7E" stroke-width="1.6"/>
+      <g fill="#E4572E"><circle cx="124" cy="160" r="3.2"/><circle cx="258" cy="124" r="3.2"/><circle cx="400" cy="92" r="3.2"/></g>
+      <g stroke="#E4572E" stroke-width=".7" stroke-dasharray="2 3" opacity=".5">
+        <line x1="124" y1="160" x2="124" y2="240"/><line x1="258" y1="124" x2="258" y2="240"/>
+      </g>
+      <text x="124" y="154" fill="#E4572E" font-size="8.5" font-family="monospace" text-anchor="middle">03:14</text>
+      <text x="258" y="118" fill="#E4572E" font-size="8.5" font-family="monospace" text-anchor="middle">15:20</text>
+      <text x="52" y="26" fill="#5C5F60" font-size="9.5" font-family="monospace" letter-spacing="1.4">TIDE / 潮位曲线</text>
+      <text x="400" y="26" fill="#93969A" font-size="9.5" font-family="monospace" text-anchor="end">23°14'N 118°06'E</text>
+    </svg>
+  </div>
+  <div class="auth">
+    <h1>孤岛<em>浪花</em></h1>
+    <p class="sub">ISLAND WAVE · STATION 04</p>
+    <p class="lead">潮汐站每天记录经过此处的信号。<br/>每条信号只被报告一次，<br/>报告之后，从记录里消失。</p>
+    <div class="field">
+      <label>手机号 / 观测者编号</label>
+      <input type="tel" placeholder="11 位手机号" />
+    </div>
+    <div class="field">
+      <label>验证码</label>
+      <div class="otp">
+        <input type="text" placeholder="6 位验证码" />
+        <button type="button">获取</button>
+      </div>
+    </div>
+    <button class="login" type="button">登 岛</button>
+    <p class="auth-alt">或使用 <span>微信</span> 登录</p>
+    <p class="auth-note">首次登岛自动建立观测身份。<br/>本站无关注、无点赞、无评论、无搜索——无人能进入你的岛，除了你自己。</p>
+  </div>
+</section>
+
+<!-- ==================== 应用主体 ==================== -->
+<div id="app" style="display:none">
+  <header class="bar">
+    <div class="cell"><span class="brand">孤岛<em>浪花</em></span></div>
+    <div class="cell"><nav class="nav">
+      <button id="nav-sea" class="on" type="button">卡片海</button>
+      <button id="nav-island" type="button">我的孤岛</button>
+    </nav></div>
+    <div class="cell grow"></div>
+    <div class="cell"><span class="id">观测者 #A7F3</span></div>
+    <div class="cell"><button class="ghost" type="button">离岛</button></div>
+  </header>
+  <div class="rulerbar" id="ruler"></div>
+
+  <div class="wrap">
+    <div class="split">
+      <!-- 左读数 -->
+      <aside class="side">
+        <div class="box">
+          <div class="box-h"><span class="dot"></span>实时读数</div>
+          <div class="big">
+            <div class="n">0.4<span style="font-size:14px;color:var(--ink-3)"> m</span></div>
+            <div class="u">当前浪高 / WAVE HEIGHT</div>
+          </div>
+          <table>
+            <tr><td>海面可见</td><td class="v hot">3 条</td></tr>
+            <tr><td>今日已读</td><td class="v">12 条</td></tr>
+            <tr><td>我的记录</td><td class="v">5 条</td></tr>
+            <tr><td>浮标</td><td class="v ok">● 在线</td></tr>
+            <tr><td>能见度</td><td class="v">良好</td></tr>
+            <tr><td>下次涨潮</td><td class="v">15:20</td></tr>
+          </table>
+        </div>
+        <div class="box">
+          <div class="box-h">24 小时潮位</div>
+          <div class="chart">
+            <svg viewBox="0 0 180 84" role="img" aria-label="24 小时潮位缩略图">
+              <title>24 小时潮位缩略图</title>
+              <g stroke="#E2E2DB" stroke-width="1"><line x1="0" y1="14" x2="180" y2="14"/><line x1="0" y1="42" x2="180" y2="42"/><line x1="0" y1="70" x2="180" y2="70"/></g>
+              <path d="M0,64 C18,60 24,46 38,42 C52,38 58,50 70,49 C82,48 88,32 102,27 C116,22 122,40 132,38 C144,35 152,20 180,16" fill="none" stroke="#2F6F7E" stroke-width="1.4"/>
+              <circle cx="102" cy="27" r="2.8" fill="#E4572E"/>
+            </svg>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 记录 -->
+      <main id="sea-view">
+        <div class="head">
+          <h1>卡片海</h1>
+          <span class="note">实时 · 偶遇制 · 无推荐算法</span>
+          <span class="right">当前可见 <b>3</b> 条 · 共记录 <b>1284</b> 条</span>
+        </div>
+        <div id="feed">
+          <article class="rec" style="--spine:var(--s1)">
+            <div class="idx"><span class="no">NO.0412</span><span class="st">● 未读</span></div>
+            <div class="main">
+              <p class="txt">今天路过便利店，没有进去。</p>
+              <div class="meta"><span class="src">来自不知名的岛</span><span>03:14</span><span>潮位 0.4m</span><span>不可回信</span></div>
+            </div>
+            <div class="right"><span>12s 前</span><span class="act">读取</span></div>
+          </article>
+          <article class="rec" style="--spine:var(--s2)">
+            <div class="idx"><span class="no">NO.0411</span><span class="st">● 未读</span></div>
+            <div class="main">
+              <p class="txt">有些告别没有说出口，就先走了。</p>
+              <div class="meta"><span class="src">来自不知名的岛</span><span>02:02</span><span>潮位 0.6m</span><span>不可回信</span></div>
+            </div>
+            <div class="right"><span>1h 前</span><span class="act">读取</span></div>
+          </article>
+          <article class="rec" style="--spine:var(--s3)">
+            <div class="idx"><span class="no">NO.0410</span><span class="st">● 未读</span></div>
+            <div class="main">
+              <p class="txt">窗外的雨下了整夜，我在想一个人。</p>
+              <div class="meta"><span class="src">来自不知名的岛</span><span>00:47</span><span>潮位 0.9m</span><span>不可回信</span></div>
+            </div>
+            <div class="right"><span>4h 前</span><span class="act">读取</span></div>
+          </article>
+        </div>
+        <div class="empty" id="empty" style="display:none">
+          <b>海 面 无 信 号</b>
+          <span>当前没有新的记录。投放一条，它会漂向未知的观测点。</span>
+        </div>
+      </main>
+
+      <main id="island-view" style="display:none">
+        <div class="head">
+          <h1>我的孤岛</h1>
+          <span class="note">私有观测档案 · 仅你可见</span>
+          <span class="right">记录 <b>5</b> 条 · 已漂出 <b>3</b> 条</span>
+        </div>
+        <div id="islfeed">
+          <article class="rec" style="--spine:var(--s1)">
+            <div class="idx"><span class="no">NO.0389</span><span class="st read">已漂出</span></div>
+            <div class="main">
+              <p class="txt">如果你也在等一条消息，请不要急着走。</p>
+              <div class="meta"><span class="src">我的岛</span><span>10-28 21:40</span><span>漂出 6 天</span><span>0 人读取</span></div>
+            </div>
+            <div class="right"><span>0 读取</span><span class="act">删除</span></div>
+          </article>
+          <article class="rec" style="--spine:var(--s2)">
+            <div class="idx"><span class="no">NO.0356</span><span class="st read">已漂出</span></div>
+            <div class="main">
+              <p class="txt">今天走了很长的路，鞋底磨薄了。</p>
+              <div class="meta"><span class="src">我的岛</span><span>10-21 23:12</span><span>漂出 13 天</span><span>0 人读取</span></div>
+            </div>
+            <div class="right"><span>0 读取</span><span class="act">删除</span></div>
+          </article>
+          <article class="rec" style="--spine:var(--s3)">
+            <div class="idx"><span class="no">NO.0301</span><span class="st read">已漂出</span></div>
+            <div class="main">
+              <p class="txt">想你了。就这一句。</p>
+              <div class="meta"><span class="src">我的岛</span><span>10-14 01:55</span><span>漂出 20 天</span><span>0 人读取</span></div>
+            </div>
+            <div class="right"><span>0 读取</span><span class="act">删除</span></div>
+          </article>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <button class="fab" id="open-compose" type="button">
+    <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v14M3 10h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+    投 放
+  </button>
+</div>
+
+<!-- ==================== 投放 ==================== -->
+<div class="overlay" id="compose-overlay">
+  <div class="modal">
+    <div class="modal-h">投放记录 / NEW RECORD<span class="x" type="button" data-close>✕</span></div>
+    <div class="modal-b">
+      <textarea placeholder="此刻想说的……（写下的瞬间，它就开始漂了）"></textarea>
+      <div class="modal-f">
+        <span><span id="cnt">0</span> / 800</span>
+        <div class="bars">
+          <span class="bar-dot sel" style="background:var(--s1)"></span>
+          <span class="bar-dot" style="background:var(--s2)"></span>
+          <span class="bar-dot" style="background:var(--s3)"></span>
+          <span class="bar-dot" style="background:var(--s4)"></span>
+          <span class="bar-dot" style="background:var(--s5)"></span>
+          <span class="bar-dot" style="background:var(--s6)"></span>
+        </div>
+      </div>
+      <button class="send" type="button">投 放 到 海 面</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 详情 ==================== -->
+<div class="overlay" id="detail-overlay">
+  <div class="modal detail">
+    <div class="modal-h">记录详情 / REC-0412<span class="x" type="button" data-close>✕</span></div>
+    <div class="modal-b">
+      <p class="full">今天路过便利店，没有进去。</p>
+      <div class="dmeta"><span>NO.0412</span><span>03:14</span><span>来自不知名的岛</span><span>不可回信</span></div>
+      <p class="dnote">该记录仅报告一次。关闭后将从你的海面永久移除。</p>
+      <button class="send" type="button" style="margin-top:16px">标 记 为 已 读</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* 刻度尺 */
+(function(){
+  var r = document.getElementById('ruler');
+  for (var i=0;i<60;i++){
+    var t = document.createElement('i');
+    if (i===17) t.className='hot';
+    else if (i%5===0) t.className='tall';
+    else if (i%2===0) t.className='mid';
+    else t.className='low';
+    r.appendChild(t);
+  }
+})();
+
+function showApp(){ document.getElementById('auth').style.display='none'; document.getElementById('app').style.display='block'; }
+document.querySelector('.login').addEventListener('click', showApp);
+document.querySelector('.auth-alt span').addEventListener('click', showApp);
+document.querySelector('.otp button').addEventListener('click', function(){ this.textContent='已发送'; this.disabled=true; });
+
+function switchTo(k){
+  ['sea','island'].forEach(function(x){
+    document.getElementById('nav-'+x).classList.toggle('on', x===k);
+    document.getElementById(x+'-view').style.display = x===k ? 'block':'none';
+  });
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+document.getElementById('nav-sea').addEventListener('click', function(){ switchTo('sea'); });
+document.getElementById('nav-island').addEventListener('click', function(){ switchTo('island'); });
+
+function openOv(id){ document.getElementById(id).classList.add('on'); }
+document.getElementById('open-compose').addEventListener('click', function(){ openOv('compose-overlay'); });
+document.querySelectorAll('[data-close]').forEach(function(b){ b.addEventListener('click', function(){ b.closest('.overlay').classList.remove('on'); }); });
+document.querySelectorAll('.overlay').forEach(function(o){ o.addEventListener('click', function(e){ if(e.target===o) o.classList.remove('on'); }); });
+document.querySelectorAll('.rec').forEach(function(r){ r.addEventListener('click', function(e){ if(e.target.classList.contains('act')) return; openOv('detail-overlay'); }); });
+
+var ta = document.querySelector('.modal textarea');
+ta.addEventListener('input', function(){ document.getElementById('cnt').textContent = ta.value.length; });
+document.querySelectorAll('.bar-dot').forEach(function(d){ d.addEventListener('click', function(){
+  document.querySelectorAll('.bar-dot').forEach(function(x){x.classList.remove('sel');}); d.classList.add('sel');
+}); });
+</script>
+</body>
+</html>
