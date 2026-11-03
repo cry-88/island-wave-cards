@@ -159,25 +159,41 @@ function ok(name, cond, extra) {
   ok('海面潮位与仪表同源', Math.abs(sea.levelTarget - gaugeLevel / window.ISLAND_TIDE.MAX) < 0.01,
      'sea目标=' + sea.levelTarget.toFixed(3) + ' gauge=' + gaugeLevel);
 
-  // 潮流真的在走：等一会儿，等深线应该已经被推着位移了
+  // 潮流真的在走：等深线应该已经被推着位移了
+  //
+  // 这里主动给引擎喂一个确定的强潮势，而不是被动等真实时钟：
+  // 平潮时（潮势趋近 0）海面几乎静止，那是设计意图，但会让断言变成
+  // 「取决于今天此刻是几点钟」的 flaky 测试。驱动输入才能稳定地验证引擎逻辑。
   const flowBefore = sea.flow;
   const levelBefore = sea.level;
+  window.ISLAND_SEA.setTide(sea.levelTarget, 45, sea.range);   // 强涨潮
   await wait(600);
   const sea2 = window.ISLAND_SEA.info();
   ok('海面在流动', Math.abs(sea2.flow - flowBefore) > 0.5,
      'flow ' + flowBefore.toFixed(2) + ' → ' + sea2.flow.toFixed(2));
   ok('浪高在向潮位收敛', Math.abs(sea2.level - sea2.levelTarget) < Math.abs(levelBefore - sea2.levelTarget),
      'level ' + levelBefore.toFixed(3) + ' → ' + sea2.level.toFixed(3) + ' 目标 ' + sea2.levelTarget.toFixed(3));
+  // 流向与潮势同向：判断依据是引擎**实际收到的**潮势输入，
+  // 不是仪表上的真实读数——上面为了稳定地验证引擎，主动喂了强涨潮，
+  // 此时引擎往东流是正确的，用真实读数去评判反而会误报。
   ok('流向与潮势同向',
      (() => {
-       const dir = $('ro-tide-dir').textContent;
-       const rising = dir.indexOf('涨') === 0;
        const moving = sea2.flowSpeed;
        // 潮势为 0（平潮）时不要求方向
        if (Math.abs(moving) < 0.05) return true;
-       return rising ? moving > 0 : moving < 0;
+       return moving > 0;   // 喂的是 +45 cm/h 强涨潮 → 必须往东
      })(),
-     '潮势=' + $('ro-tide-dir').textContent + ' 流速=' + sea2.flowSpeed.toFixed(2));
+     '喂入强涨潮 45cm/h → 流速=' + sea2.flowSpeed.toFixed(2));
+
+  // 强涨潮时水流必须往东（正值）；平潮时海面应趋于静止
+  ok('强涨潮时水流为正', sea2.flowSpeed > 0, 'flowSpeed=' + sea2.flowSpeed.toFixed(2));
+  window.ISLAND_SEA.setTide(sea.levelTarget, 0, sea.range);   // 喂平潮
+  await wait(700);
+  const sea3 = window.ISLAND_SEA.info();
+  ok('平潮时海面趋于静止', Math.abs(sea3.flowSpeed) < Math.abs(sea2.flowSpeed),
+     '流速 ' + sea2.flowSpeed.toFixed(2) + ' → ' + sea3.flowSpeed.toFixed(2));
+  ok('平潮时流速仍非负（未反向乱流）', sea3.flowSpeed >= -0.01,
+     'flowSpeed=' + sea3.flowSpeed.toFixed(3));
 
   console.log('=== 4. 写卡 ===');
   $('compose-btn').click();

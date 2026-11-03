@@ -30,6 +30,12 @@
 由 `frontend/sea.js` 用 Canvas 实时绘制，形态取自海图（bathymetric chart）的语言：
 等深线、每第 4 根加粗的计曲线、浮沫、以及每隔十几秒扫过海面的信号灯。
 
+![活海背景（动图）](assets/screenshot-sea.gif)
+
+> 上面的动图是主界面的实时录屏（20 帧连拍，非后期合成）：
+> 等深线在缓慢流动、浮沫在明灭、信号灯每十几秒扫过一次海面，
+> 卡片从这片海里漂过。静态截图看不出这一点，所以这里放的是 GIF。
+
 关键在于**它和左栏仪表读的是同一份数据**（`frontend/tide.js` 是全站唯一的潮汐真源）：
 
 | 潮汐数据 | 背景海面的表现 |
@@ -45,6 +51,17 @@
 "看过即消失"这件事，在背景上是真的看得见的。
 
 无障碍：`prefers-reduced-motion` 下自动降级为静态一帧；页面切到后台时暂停渲染。
+
+### 想自己看一眼？
+
+```bash
+node tools/capture-gif.js    # 用 CDP 直连 Edge 连拍 48 帧，输出到 assets/_frames
+```
+
+动图不是录屏工具的产物，是脚本按固定间隔连拍出来的——
+所以每一帧都来自**同一个页面实例**，卡片内容和海面相位连续，不会跳帧。
+（同一份素材见 `assets/screenshot-sea.gif`；合成 GIF 需要 Python + Pillow，
+只有想重新生成时才用得上，日常开发不需要。）
 
 ## 在线访问
 
@@ -74,8 +91,10 @@ island-wave-cards/
 │   └── package.json
 ├── test/                   # 集成冒烟测试（jsdom 驱动 demo 版全流程）
 │   └── smoke.js
+├── tools/                  # 开发辅助脚本
+│   └── capture-gif.js      #   活海背景动图抓帧器（CDP 直连 Edge 连拍）
 ├── design/                 # 视觉方向原型（三版对比稿，供设计决策留档）
-├── assets/                 # README 截图
+├── assets/                 # README 截图与动图
 ├── .github/workflows/      # GitHub Pages 自动部署
 ├── .gitignore
 ├── LICENSE
@@ -107,6 +126,10 @@ npm start          # 默认 http://localhost:3000，可用 PORT=8080 覆盖
 npm install jsdom          # 唯一依赖
 node test/smoke.js
 ```
+
+共 73 项断言。涉及海面的断言会**主动给引擎喂确定的潮势**再验证反应，
+而不是被动等真实时钟——否则平潮时段（海面本就几乎静止）会让测试变成
+「取决于今天几点钟」的 flaky 测试。
 
 ## 架构说明
 

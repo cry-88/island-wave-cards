@@ -17,6 +17,10 @@ frontend/dist/
 dist/
 build/
 
+# ===== 动图抓帧中间产物（只保留合成好的 assets/screenshot-sea.gif）=====
+assets/_frames/
+assets/_gifcheck.png
+
 # ===== 编辑器配置 =====
 .vscode/
 .idea/
