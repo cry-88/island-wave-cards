@@ -80,6 +80,16 @@ node tools/capture-gif.js    # 用 CDP 直连 Edge 连拍 48 帧，输出到 ass
 （同一份素材见 `assets/screenshot-sea.gif`；合成 GIF 需要 Python + Pillow，
 只有想重新生成时才用得上，日常开发不需要。）
 
+想验证登岛链路真的走得通（而不是只看单个 URL 返回什么）：
+
+```bash
+node tools/verify-entry.js   # 真实浏览器跑完整链路：入口页 → 自动跳转 → 登录页控件就位
+```
+
+它用 CDP 驱动一个真实 headless Edge，打开无参入口页、等自动跳转发生，
+再检查落点是否带上了 `sharecode`、登录页的三个控件是否都在。
+改了入口页或门禁相关的逻辑后跑一遍，比 curl 靠谱。
+
 ## 在线访问
 
 - **[孤岛浪花 · 登岛入口](https://cry-88.github.io/island-wave-cards/entry.html)** —— **分享给别人请用这个**。完整版：手机号 / 微信登录后放卡入海，偶遇陌生人的浪花，看过即消失。
@@ -123,7 +133,8 @@ island-wave-cards/
 ├── test/                   # 集成冒烟测试（jsdom 驱动 demo 版全流程）
 │   └── smoke.js
 ├── tools/                  # 开发辅助脚本
-│   └── capture-gif.js      #   活海背景动图抓帧器（CDP 直连 Edge 连拍）
+│   ├── capture-gif.js      #   活海背景动图抓帧器（CDP 直连 Edge 连拍）
+│   └── verify-entry.js     #   登岛入口端到端验证（CDP 跑完整跳转链路）
 ├── design/                 # 视觉方向原型（三版对比稿，供设计决策留档）
 ├── assets/                 # README 截图与动图
 ├── .github/workflows/      # GitHub Pages 自动部署
