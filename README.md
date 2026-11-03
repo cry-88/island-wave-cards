@@ -13,8 +13,13 @@
 
 ## 在线访问
 
-- **[孤岛浪花 · 真实版](https://cry-88.github.io/island-wave-cards/)** —— 站点主入口，直连 WorkBuddy 托管云服务：手机号 / 微信登录后即可放卡入海，偶遇他人的浪花，看过即消失。
-- **[本地演示版](https://cry-88.github.io/island-wave-cards/demo.html)** —— 无需登录，数据存在浏览器本地，适合先试试手感。
+- **[孤岛浪花 · 真实版](https://island-wave-cards.app.workbuddy.host/?sharecode=R7PJGFFCEZ)** —— 完整版：手机号 / 微信登录后放卡入海，偶遇陌生人的浪花，看过即消失（WorkBuddy 托管，全球可访问）。
+- **[本地演示版](https://cry-88.github.io/island-wave-cards/)** —— GitHub Pages，零门槛试玩：无需登录，数据存在浏览器本地。
+
+> 为什么真实版不住 GitHub Pages：托管云服务会校验请求来源（Origin 白名单），
+> GitHub Pages 域名不在其中，真实版放上去能打开但无法登录。演示版用
+> localStorage 模拟同一套 API，不受影响——所以 Pages 根入口放的是演示版，
+> 并在页面顶部放了通往真实版的入口。
 
 ## 目录结构
 
