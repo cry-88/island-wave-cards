@@ -404,6 +404,10 @@
 
   /* ---------- 认证 ---------- */
   var authListeners = [];
+  /* 最近一次 signInWithOAuth 收到的参数。
+     演示模式不支持微信登录，但把参数留下来——测试要验证
+     redirectTo 里带上了 sharecode（真实版跳回裸域名会被门禁拦成 403）。 */
+  var lastOAuthRequest = null;
 
   var authApi = {
     getSession: function () {
@@ -476,7 +480,11 @@
       return delay(40).then(function () { return { error: null }; });
     },
 
-    signInWithOAuth: function () {
+    signInWithOAuth: function (opts) {
+      /* 记下收到的参数：测试要验证 redirectTo 带上了 sharecode。
+         真实版里跳回裸域名会被平台的访问门禁拦成 403，
+         所以这个参数是登录链路能不能走通的命门。 */
+      lastOAuthRequest = opts || null;
       return delay(200).then(function () {
         return {
           data: null,
@@ -516,6 +524,8 @@
   window.ISLAND_DEMO = {
     reset: resetAll,
     storageOk: storageOk,
+    /* 最近一次微信登录请求的参数（测试用：验证 redirectTo 带上了 sharecode） */
+    lastOAuthRequest: function () { return lastOAuthRequest; },
     version: 'local-demo-1'
   };
 })();

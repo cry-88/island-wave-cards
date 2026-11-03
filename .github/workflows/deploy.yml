@@ -30,6 +30,13 @@ jobs:
           # 活海背景的两个部件：潮汐模型（tide.js）与海面引擎（sea.js）
           # 少了任何一个，页面直接白屏——app.js 一上来就要读 window.ISLAND_TIDE
           cp frontend/tide.js frontend/sea.js _site/
+          # 登岛中转页：分享给朋友的入口。
+          # 真实版托管域有平台层的访问门禁（必须带 sharecode，否则整页被换成
+          # 403「链接不完整」拦截页），而 sharecode 只能待在 query 里，
+          # query 恰恰是聊天工具转发时最容易截断的部分。
+          # 这一页挂在 Pages 上（没有门禁），URL 一个参数都没有，截断无从发生，
+          # 它在运行时把完整链接拼出来再把人送进真实版。
+          cp frontend/entry.html _site/
           # 站点根入口 = 演示版：localStorage 本地后端，零门槛试玩，不依赖云端
           # （真实版住 WorkBuddy 托管域：云端 Origin 安全策略只放行应用自己的域名，
           #   GitHub Pages 域名下真实版无法登录，故不部署到 Pages，避免误导访客）

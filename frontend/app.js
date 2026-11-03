@@ -37,6 +37,91 @@
     t._timer = setTimeout(function () { t.classList.remove('show'); }, ms || 2400);
   }
 
+  /* ---------- 访问钥匙：sharecode ----------
+     托管域上有一道平台层的访问门禁：请求必须带对 sharecode 参数，
+     否则整页会被替换成「链接不完整」的 403 拦截页——
+     我们的代码根本不会被送达浏览器，所以页面自己无法「检测缺参数再跳转」。
+
+     但门禁会种一枚 Cookie（__wb_rsc）：带对一次，之后一个月内该设备免检。
+     而 sharecode 只能待在 query 里，query 恰恰是聊天工具转发时最容易截断的部分。
+
+     所以这里的职责很简单：
+       1) 记住它（URL 里有就存下来，存进 localStorage 兜住后续回调）
+       2) 微信登录的 redirectTo 带上它 —— 否则授权完跳回来是裸域名，
+          用户的浏览器若还没拿到那枚 Cookie，就会撞上拦截页
+       3) 分享给别人的链接用无参的入口页（entry.html），截断无从发生 */
+  var SHARE_KEY = 'island:sharecode';
+
+  function currentShareCode() {
+    try {
+      var q = new URL(location.href).searchParams.get('sharecode');
+      if (q) {
+        localStorage.setItem(SHARE_KEY, q);
+        return q;
+      }
+    } catch (e) { /* 老浏览器没有 URL 构造器，走下面的兜底 */ }
+    try { return localStorage.getItem(SHARE_KEY) || ''; } catch (e) { return ''; }
+  }
+
+  /* 带钥匙的完整链接：给「复制链接」用 */
+  function shareUrl() {
+    var code = currentShareCode();
+    var base = location.origin + location.pathname;
+    return code ? base + '?sharecode=' + encodeURIComponent(code) : base;
+  }
+
+  /* 分享给别人的链接：优先用无参入口页，它不会被截断 */
+  function shareLink() {
+    var entry = cfg && cfg.entryUrl ? cfg.entryUrl : '';
+    return entry || shareUrl();
+  }
+
+  /* 把一段文字放进剪贴板。
+     优先用 navigator.clipboard（真实版是 https，点击有用户手势，能过）；
+     它在旧内核或非安全上下文里会静默失败，所以留 execCommand 兜底。 */
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        var p = navigator.clipboard.writeText(text);
+        if (p && p.then) {
+          p.then(function () { flashShareHint(true); }, function () { flashShareHint(legacyCopy(text)); });
+          return true;   /* 已排队：成功与否由上面回调更新提示 */
+        }
+      } catch (e) { /* 落到下面的兜底 */ }
+    }
+    return flashShareHint(legacyCopy(text));
+  }
+
+  /* 兜底复制：execCommand 是老 API，但在旧内核上唯一能用 */
+  function legacyCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  /* 分享按钮的反馈：成功说什么、失败说什么，都要让人知道下一步怎么做 */
+  function flashShareHint(ok) {
+    var hint = $('share-hint');
+    if (!hint) return ok;
+    hint.textContent = ok ? '已复制，去发给朋友吧' : '复制失败，请手动复制地址栏';
+    hint.classList.toggle('ok', ok);
+    clearTimeout(hint._timer);
+    hint._timer = setTimeout(function () {
+      hint.textContent = '带朋友一起来';
+      hint.classList.remove('ok');
+    }, 2600);
+    return ok;
+  }
+
   function relTime(iso) {
     var then = new Date(iso).getTime();
     if (isNaN(then)) return '';
@@ -236,6 +321,11 @@
   function bootstrap() {
     if (!initCloud()) return;
 
+    /* 先把钥匙记下来：URL 里有就存住。
+       后面微信登录的 redirectTo 要用它——否则授权完跳回裸域名，
+       平台的访问门禁会把人拦在 403 拦截页上。 */
+    currentShareCode();
+
     var url = new URL(location.href);
     if (!url.searchParams.has('code') && !url.searchParams.has('error')) {
       continueNormalStartup();
@@ -258,6 +348,9 @@
       } else if (res && res.data) {
         ['code', 'state', 'provider'].forEach(function (k) { url.searchParams.delete(k); });
         history.replaceState(null, '', url.pathname + url.search + url.hash);
+        /* sharecode 保留在地址栏里：这样用户直接复制地址栏发给朋友，
+           链接就是完整的。门禁那枚 Cookie 已经种下，这台设备下次不用再带钥匙。 */
+        currentShareCode();
         enterApp(res.data);
       } else {
         continueNormalStartup();
@@ -464,9 +557,15 @@
   /* ---------- 登录：微信（需发布后的域名） ---------- */
   function wechatLogin() {
     hideAuthError();
+    /* redirectTo 要带上 sharecode：授权完成后中转会跳回这个地址，
+       而裸域名会被平台的访问门禁拦成 403。
+       SDK 把 redirectTo 原样塞进 callback_url，query 会被完整保留。 */
+    var redirectTo = location.origin + '/';
+    var code = currentShareCode();
+    if (code) redirectTo += '?sharecode=' + encodeURIComponent(code);
     cloud.auth.signInWithOAuth({
       provider: 'wechat',
-      redirectTo: location.origin
+      redirectTo: redirectTo
     }).then(function (res) {
       if (res.error) {
         showAuthError((res.error.message || '微信登录暂不可用') + '（微信登录需在网站正式发布后的域名中进行）');
@@ -853,6 +952,13 @@
     $('phone-form').addEventListener('submit', submitLogin);
     $('phone').addEventListener('input', function () { setPhoneError(''); });
     $('wechat-login-btn').addEventListener('click', wechatLogin);
+
+    /* 分享：复制入口页链接。
+       入口页没有 query 参数，所以这个链接被聊天工具转发时不会像
+       带 sharecode 的链接那样被截断——这是平台门禁下唯一稳的分享方式。 */
+    $('share-btn').addEventListener('click', function () {
+      copyText(shareLink());
+    });
 
     $('nav-sea').addEventListener('click', function () { switchView('sea'); });
     $('nav-island').addEventListener('click', function () { switchView('island'); });

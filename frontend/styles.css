@@ -279,6 +279,27 @@ input, textarea { font-family: inherit; }
 }
 .auth-error.show { display: block; }
 
+/* 分享入口：低调地搁在登岛卡末尾，
+   不抢「登岛」和「微信登录」的注意力，但要用的时候找得到 */
+.share-row {
+  margin-top: 18px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.share-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 13px;
+  font-size: 11.5px; letter-spacing: .05em;
+  color: var(--gauge);
+  border: 1px solid var(--line-2); border-radius: 3px;
+  transition: color .2s ease, border-color .2s ease;
+}
+.share-btn:hover { color: var(--signal); border-color: var(--signal); }
+.share-btn svg { opacity: .8; }
+.share-hint {
+  font-size: 11px; letter-spacing: .04em; color: #4E6165;
+}
+.share-hint.ok { color: var(--alive); }
+
 /* ---------- 应用主体：左仪表台 + 右信流 ---------- */
 #app-view { display: none; position: relative; z-index: 2; min-height: 100vh; }
 #app-view.on { display: block; }

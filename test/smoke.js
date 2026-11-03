@@ -33,7 +33,10 @@ for (const f of ['config.js', 'tide.js', 'sea.js', 'local-backend.js', 'app.js']
 
 const dom = new JSDOM(html, {
   runScripts: 'dangerously',
-  url: 'http://127.0.0.1:8766/demo.html',
+  /* URL 上带 sharecode：这就是真实用户点分享链接进来的样子。
+     门禁那枚 Cookie 由平台种，但钥匙本身要由我们的代码记住——
+     微信登录的 redirectTo 靠它带回参数，否则跳回裸域名会被门禁拦成 403。 */
+  url: 'http://127.0.0.1:8766/demo.html?sharecode=R7PJGFFCEZ',
   pretendToBeVisual: true,
   virtualConsole: vc,
   beforeParse(window) {
@@ -88,6 +91,36 @@ function ok(name, cond, extra) {
   ok('登岛页可见', $('auth-view').style.display !== 'none');
   ok('应用主体隐藏', !$('app-view').classList.contains('on'));
   ok('云端模拟已就绪', typeof window.WorkBuddyCloud === 'object');
+
+  console.log('=== 1b. 访问门禁与分享链路 ===');
+  /* 背景：托管域上有一道平台层的访问门禁——请求必须带对 sharecode，
+     否则整页被换成 403「链接不完整」拦截页，我们自己的代码根本不会被送达。
+     而 sharecode 只能待在 query 里，query 又是聊天工具转发时最容易截断的部分。
+     所以对外分享必须走「无参入口页」。这几条断言守住这个约定。 */
+  const cfg = window.ISLAND_CONFIG;
+  ok('config.js 里有访问钥匙', !!(cfg && cfg.shareCode), 'sharecode=' + (cfg && cfg.shareCode));
+  ok('config.js 里有无参入口页', !!(cfg && cfg.entryUrl), 'entry=' + (cfg && cfg.entryUrl));
+  ok('入口页链接不含任何 query', !!(cfg && cfg.entryUrl && !/[?&]/.test(cfg.entryUrl)), cfg && cfg.entryUrl);
+
+  /* 入口页自身：URL 不带参数，但页面里必须能拼出完整链接 */
+  const entrySrc = fs.readFileSync(path.join(FRONTEND, 'entry.html'), 'utf8');
+  ok('入口页文件存在且有内容', entrySrc.length > 500, 'size=' + entrySrc.length);
+  ok('入口页不含静态 sharecode 明文', !new RegExp("'sharecode='\\s*\\+").test(entrySrc) || entrySrc.includes('ISLAND_CONFIG'));
+  ok('入口页引用 config.js 取钥匙', entrySrc.includes('config.js'));
+  ok('入口页有进入按钮', entrySrc.includes('id="enter"'));
+  ok('入口页有可复制的完整链接', entrySrc.includes('id="full-url"') && entrySrc.includes('copy-btn'));
+  ok('入口页有自动跳转倒计时', entrySrc.includes('id="countdown"'));
+
+  /* 登岛页的分享按钮 */
+  ok('登岛页有分享按钮', !!$('share-btn'));
+  ok('分享按钮有说明文字', $('share-hint').textContent.length > 0, $('share-hint').textContent);
+  ok('分享链接是无参入口页', cfg && cfg.entryUrl && !cfg.entryUrl.includes('sharecode'), cfg && cfg.entryUrl);
+
+  /* 钥匙的记忆：URL 里带了 sharecode，bootstrap 应当自动存住。
+     微信登录的 redirectTo 靠它带回参数——不带的话跳回裸域名会被门禁拦成 403。 */
+  ok('URL 里的钥匙已记住',
+     window.localStorage.getItem('island:sharecode') === cfg.shareCode,
+     'stored=' + window.localStorage.getItem('island:sharecode'));
 
   console.log('=== 2. 登岛流程 ===');
   $('phone').value = '13800138000';
@@ -254,6 +287,28 @@ function ok(name, cond, extra) {
   ok('离岛后卡片海清空', doc.querySelectorAll('#card-grid .card').length === 0);
   ok('离岛后孤岛清空', doc.querySelectorAll('#island-grid .card').length === 0);
   ok('离岛后海面已收起', window.ISLAND_SEA.info().mounted === false);
+
+  console.log('=== 8. 分享链路 ===');
+  /* 分享按钮：点了要能复制到「无参入口页」。
+     这是防止链接被截断的第一道防线——带 sharecode 的链接
+     经聊天工具转发后可能只剩域名，朋友就会撞上 403 拦截页。 */
+  $('share-btn').click();
+  ok('点分享后有反馈', $('share-hint').textContent.length > 0, $('share-hint').textContent);
+  ok('分享的是无参入口页', window.ISLAND_CONFIG.entryUrl.indexOf('sharecode') === -1,
+     window.ISLAND_CONFIG.entryUrl);
+
+  /* 微信登录的 redirectTo 必须带上 sharecode：
+     授权完中转会跳回这个地址，裸域名会被平台的访问门禁拦成 403。
+     这条断言是这次修复的核心——之前 redirectTo 就是裸域名。 */
+  $('wechat-login-btn').click();
+  await wait(320);
+  const oauthReq = window.ISLAND_DEMO.lastOAuthRequest();
+  ok('微信登录发起了授权请求', !!oauthReq, oauthReq ? 'provider=' + oauthReq.provider : 'null');
+  ok('redirectTo 是绝对 URL', !!(oauthReq && /^https?:\/\//.test(oauthReq.redirectTo || '')),
+     oauthReq && oauthReq.redirectTo);
+  ok('redirectTo 带着 sharecode',
+     !!(oauthReq && oauthReq.redirectTo && oauthReq.redirectTo.indexOf('sharecode=' + window.ISLAND_CONFIG.shareCode) !== -1),
+     oauthReq && oauthReq.redirectTo);
 
   console.log('');
   console.log(logs.join('\n'));

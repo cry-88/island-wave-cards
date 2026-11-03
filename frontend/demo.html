@@ -31,7 +31,7 @@
   <!-- 演示版引导条：本地版数据只存在自己浏览器；真实版（全球共享的卡片海）在托管域 -->
   <div class="demo-banner" role="note">
     <span>本地演示版 · 写的卡只住在你的浏览器里</span>
-    <a href="https://island-wave-cards.app.workbuddy.host/?sharecode=R7PJGFFCEZ" target="_blank" rel="noopener">进入真实版，把浪花放进所有人的海 →</a>
+    <a href="https://cry-88.github.io/island-wave-cards/entry.html" target="_blank" rel="noopener">进入真实版，把浪花放进所有人的海 →</a>
   </div>
 
   <!-- 活的背景海面：等深线 / 灯扫 / 浮沫，与左栏仪表共用潮汐模型 -->
@@ -167,6 +167,21 @@
 
       <p class="auth-note">首次登岛会自动为你生成一座新岛。<br/>这里没有关注、点赞、评论和搜索——<br/>没有人能走进你的岛，除了你自己。</p>
       <p class="auth-error" id="auth-error"></p>
+
+      <!-- 分享入口：给朋友一个「截不断」的链接。
+           真实版的访问钥匙只能待在 query 里，而 query 是聊天工具转发时
+           最容易被截断的部分（平台门禁的拦截页第一条建议就是这个）。
+           所以分享出去的是无参入口页，它在运行时把人送进真实版。 -->
+      <div class="share-row">
+        <button type="button" class="share-btn" id="share-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          复制这片海的链接
+        </button>
+        <span class="share-hint" id="share-hint">带朋友一起来</span>
+      </div>
     </div>
   </section>
 
