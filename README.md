@@ -138,6 +138,7 @@ island-wave-cards/
 ├── design/                 # 视觉方向原型（三版对比稿，供设计决策留档）
 ├── assets/                 # README 截图与动图
 ├── .github/workflows/      # GitHub Pages 自动部署
+├── CHANGELOG.md            # 更新日志（v1.0.0 / v2.0.0）
 ├── .gitignore
 ├── LICENSE
 └── README.md
@@ -201,3 +202,7 @@ node test/smoke.js
 ## License
 
 [MIT](LICENSE) © RuYi Chen
+
+## 更新日志
+
+见 [CHANGELOG.md](CHANGELOG.md)。当前版本：**v2.0.0**（夜航信号视觉 + 活海背景 + 真实版上线）。
