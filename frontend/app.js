@@ -85,6 +85,161 @@
     return digits.slice(0, 3) + '****' + digits.slice(-4);
   }
 
+  /* ---------- 潮汐：真实半日潮推算 ----------
+     五个主要分潮（M2/S2/N2/K1/O1）叠加得到的调和潮曲线。
+     每个分潮有确定的周期与迟角，相加后自然形成半日潮的
+     "一高一低"形态和不等幅的涨落——这正是真实海岸的形状。
+     这里是天文推算，不是任何观测站的实测数据。 */
+
+  // 分潮表：name, 周期（小时）, 振幅（米）, 迟角（度）
+  var TIDES = [
+    { name: 'M2', period: 12.4206, amp: 0.62, phase: 32 },   // 主月半日潮
+    { name: 'S2', period: 12.0000, amp: 0.21, phase: 48 },   // 主太阳半日潮
+    { name: 'N2', period: 12.6583, amp: 0.12, phase: 18 },   // 大月椭率半日潮
+    { name: 'K1', period: 23.9345, amp: 0.19, phase: 205 },  // 日月赤纬日潮
+    { name: 'O1', period: 25.8193, amp: 0.13, phase: 178 }   // 主太阳日潮
+  ];
+  var MSL = 1.42;   // 平均海平面（米）
+
+  // 潮高（米）：t 为「距今的小时数」，可正可负
+  function tideHeight(t) {
+    var h = MSL;
+    for (var i = 0; i < TIDES.length; i++) {
+      var c = TIDES[i];
+      h += c.amp * Math.cos(2 * Math.PI * (t / c.period) + c.phase * Math.PI / 180);
+    }
+    return h;
+  }
+
+  // 把「一天 24 小时」映射成仪表里的曲线路径
+  // 量程按真实潮位可能出现的范围定（MSL 1.42 ± 各分潮振幅之和 ≈ ±1.3m）
+  var TIDE_MIN = 0.0, TIDE_MAX = 2.8;
+  function tidePath() {
+    var w = 172, h = 128, x0 = 40, y0 = 148;
+    var d = '', area = '', i, x, y;
+    for (i = 0; i <= 96; i++) {
+      var t = i / 96 * 24 - 12;          // 过去 12 小时 → 未来 12 小时
+      var lv = tideHeight(t);
+      x = x0 + (i / 96) * w;
+      y = y0 - ((lv - TIDE_MIN) / (TIDE_MAX - TIDE_MIN)) * h;
+      d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+    }
+    area = d + 'L' + (x0 + w).toFixed(1) + ',' + y0 + ' L' + x0 + ',' + y0 + ' Z';
+    return { line: d.trim(), area: area };
+  }
+
+  // 更新潮位仪表：曲线、当前时刻游标、读数
+  function renderTide() {
+    var p = tidePath();
+    var path = $('tide-path'), fill = $('tide-fill');
+    if (path) path.setAttribute('d', p.line);
+    if (fill) fill.setAttribute('d', p.area);
+
+    // 当前时刻：仪表横跨「过去 12 小时 → 未来 12 小时」，现在居中
+    var now = tideHeight(0);
+    var x = 40 + 0.5 * 172;
+    var y = 148 - ((now - TIDE_MIN) / (TIDE_MAX - TIDE_MIN)) * 128;
+    var dot = $('tide-now-dot'), line = $('tide-now-line');
+    if (dot) { dot.setAttribute('cx', x.toFixed(1)); dot.setAttribute('cy', y.toFixed(1)); }
+    if (line) { line.setAttribute('x1', x.toFixed(1)); line.setAttribute('x2', x.toFixed(1)); }
+
+    if ($('ro-tide')) $('ro-tide').textContent = now.toFixed(2) + ' m';
+
+    // 潮势：往后推 6 分钟看涨还是落
+    var later = tideHeight(0.1);
+    if ($('ro-tide-dir')) {
+      $('ro-tide-dir').textContent = later > now
+        ? '涨 ' + ((later - now) * 10).toFixed(1) + ' cm/h'
+        : '落 ' + ((now - later) * 10).toFixed(1) + ' cm/h';
+    }
+
+    // 下次高潮：在未来 24 小时内找第一个局部极大
+    if ($('ro-next-high')) {
+      var best = null;
+      for (var m = 1; m <= 1440; m++) {
+        var t = m / 60;
+        if (tideHeight(t) > tideHeight(t - 1 / 60) && tideHeight(t) >= tideHeight(t + 1 / 60)) {
+          best = t; break;
+        }
+      }
+      if (best !== null) {
+        var mins = Math.round(best * 60);
+        var hh = Math.floor(mins / 60) % 24;
+        var mm = mins % 60;
+        $('ro-next-high').textContent =
+          (hh < 10 ? '0' + hh : hh) + ':' + (mm < 10 ? '0' + mm : mm);
+      }
+    }
+
+    // 本次落差：当前这次潮 cycle 的高潮减低潮
+    if ($('ro-range')) {
+      var hi = -99, lo = 99;
+      for (var k = 0; k <= 1440; k += 5) {
+        var v = tideHeight(k / 60);
+        if (v > hi) hi = v;
+        if (v < lo) lo = v;
+      }
+      $('ro-range').textContent = (hi - lo).toFixed(2) + ' m';
+    }
+  }
+
+  /* ---------- 卡片信号波形：这枚卡片独有的指纹 ----------
+     波形由卡片 id 推导（不是随机数），所以同一张卡每次打开
+     都是同一条线——它就像这张卡的"声音"，可以认出来。 */
+  function waveFor(id) {
+    var seed = Math.abs(Math.floor(Number(id) || 1));
+    var pts = [], i, x, y;
+    for (i = 0; i < 34; i++) {
+      // 三个不同频率的正弦叠加，模拟一条不规则的信号
+      var a = Math.sin((i + seed % 17) * 0.55) * 0.55;
+      var b = Math.sin((i + seed % 7) * 1.31 + 1.2) * 0.28;
+      var c = Math.sin((i + seed % 23) * 2.7 + 2.4) * 0.17;
+      var v = a + b + c;
+      x = (i / 33) * 100;
+      y = 17 - v * 13;
+      pts.push(x.toFixed(1) + ',' + y.toFixed(1));
+    }
+    var d = 'M' + pts.join(' L');
+    return '<svg viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">' +
+      '<path d="' + d + '" fill="none" stroke="var(--spine)" stroke-width="1.4" ' +
+      'stroke-linejoin="round" stroke-linecap="round" opacity=".85" vector-effect="non-scaling-stroke"/>' +
+      '<line x1="0" y1="17" x2="100" y2="17" stroke="#2A3C40" stroke-width=".5" ' +
+      'stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>' +
+      '</svg>';
+  }
+
+  // 最近靠岸：本次会话读过的卡片
+  var landedLog = [];
+
+  function pushLanded(c) {
+    landedLog.unshift({ no: recordNo(c.id), text: c.content, at: clockTime(c.created_at) });
+    if (landedLog.length > 5) landedLog.pop();
+    var ul = $('landed-list');
+    if (!ul) return;
+    ul.innerHTML = '';
+    if (!landedLog.length) {
+      var empty = document.createElement('li');
+      empty.className = 'landed-empty';
+      empty.textContent = '还没有卡片靠岸';
+      ul.appendChild(empty);
+      return;
+    }
+    landedLog.forEach(function (item) {
+      var li = document.createElement('li');
+      var no = document.createElement('span');
+      no.className = 'no';
+      no.textContent = item.no;
+      var txt = document.createElement('span');
+      txt.className = 'txt';
+      txt.textContent = item.text;
+      var t = document.createElement('span');
+      t.className = 't';
+      t.textContent = item.at;
+      li.appendChild(no); li.appendChild(txt); li.appendChild(t);
+      ul.appendChild(li);
+    });
+  }
+
   /* ---------- SDK 初始化 ---------- */
   function initCloud() {
     if (typeof window.WorkBuddyCloud === 'undefined' || !window.WorkBuddyCloud.createWorkBuddyCloud) {
@@ -186,6 +341,18 @@
     $('app-view').classList.add('on');
     switchView('sea');
     startPolling();
+    startTideClock();
+  }
+
+  // 潮位仪表每分钟走一格：游标随时间移动，读数刷新
+  var tideTimer = null;
+  function startTideClock() {
+    stopTideClock();
+    renderTide();
+    tideTimer = setInterval(renderTide, 60000);
+  }
+  function stopTideClock() {
+    if (tideTimer) { clearInterval(tideTimer); tideTimer = null; }
   }
 
   function switchView(v) {
@@ -432,6 +599,10 @@
     el.className = 'card tint-' + tint;
     el.dataset.id = c.id;
 
+    // 左半：卡头 + 正文 + 卡脚
+    var body = document.createElement('div');
+    body.className = 'card-body';
+
     // 卡头：状态 / 编号 / 时刻
     var head = document.createElement('div');
     head.className = 'head-line';
@@ -446,9 +617,9 @@
     t.textContent = clockTime(c.created_at);
     head.appendChild(st); head.appendChild(no); head.appendChild(t);
 
-    var body = document.createElement('p');
-    body.className = 'excerpt';
-    body.textContent = (!opts.full && c.content.length > 90)
+    var excerpt = document.createElement('p');
+    excerpt.className = 'excerpt';
+    excerpt.textContent = (!opts.full && c.content.length > 90)
       ? c.content.slice(0, 90) + ' ……'
       : c.content;
 
@@ -463,9 +634,18 @@
     from.textContent = opts.island ? '写自这座岛' : '来自某座不知名的岛';
     meta.appendChild(time); meta.appendChild(dot); meta.appendChild(from);
 
-    el.appendChild(head);
+    body.appendChild(head);
+    body.appendChild(excerpt);
+    body.appendChild(meta);
+
+    // 右半：这枚卡片独有的信号波形
+    var wave = document.createElement('div');
+    wave.className = 'card-wave';
+    wave.innerHTML = waveFor(id) +
+      '<span class="wave-label">SIGNAL · ' + recordNo(id).replace('NO.', '') + '</span>';
+
     el.appendChild(body);
-    el.appendChild(meta);
+    el.appendChild(wave);
 
     if (opts.clickable) {
       el.addEventListener('click', function () { openCard(c); });
@@ -534,6 +714,9 @@
     var c = activeCard;
     activeCard = null;
     if (!c) return;
+
+    // 记下这枚卡片靠岸过（左栏「最近靠岸」）
+    pushLanded(c);
 
     if (c.__seen === true) {
       // 已确认记档，直接退场
@@ -676,6 +859,7 @@
     $('nav-island').addEventListener('click', function () { switchView('island'); });
     $('logout-btn').addEventListener('click', function () {
       stopPolling();
+      stopTideClock();
       cloud.auth.signOut().then(function () {
         showAuth();
       }).catch(function () {

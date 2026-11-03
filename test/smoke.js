@@ -101,7 +101,28 @@ function ok(name, cond, extra) {
     ok('卡片正文非空', c0.querySelector('.excerpt').textContent.trim().length > 0);
     ok('卡片正文用衬线类', c0.querySelector('.excerpt').className === 'excerpt');
     ok('卡片卡脚有来源', c0.querySelector('.meta .from').textContent.length > 0, c0.querySelector('.meta .from').textContent);
+
+    // --- 信号波形指纹：每张卡独一无二 ---
+    ok('卡片有信号波形', !!c0.querySelector('.card-wave svg'), 'card-wave');
+    const wavePath = c0.querySelector('.card-wave svg path');
+    ok('波形有路径数据', !!wavePath && (wavePath.getAttribute('d') || '').length > 40);
+    ok('波形带 SIGNAL 标签', /SIGNAL/.test(c0.querySelector('.card-wave .wave-label').textContent),
+       c0.querySelector('.card-wave .wave-label').textContent);
+    // 两张卡的波形应当不同（由 id 推导）
+    const w0 = seaCards[0].querySelector('.card-wave svg path').getAttribute('d');
+    const w1 = seaCards[1].querySelector('.card-wave svg path').getAttribute('d');
+    ok('不同卡片波形不同', w0 !== w1);
   }
+
+  console.log('=== 3b. 潮汐仪表与海况读数 ===');
+  ok('潮位曲线已绘制', ($('tide-path').getAttribute('d') || '').length > 50);
+  ok('潮位填充已绘制', ($('tide-fill').getAttribute('d') || '').length > 50);
+  ok('当前时刻游标存在', !!$('tide-now-dot').getAttribute('cx'));
+  ok('当前潮位读数有值', /\d\.\d\d m/.test($('ro-tide').textContent), $('ro-tide').textContent);
+  ok('潮势读数有值', /(涨|落) \d/.test($('ro-tide-dir').textContent), $('ro-tide-dir').textContent);
+  ok('下次高潮读数有值', /^\d{2}:\d{2}$/.test($('ro-next-high').textContent), $('ro-next-high').textContent);
+  ok('本次落差读数有值', /\d\.\d\d m/.test($('ro-range').textContent), $('ro-range').textContent);
+  ok('最近靠岸初始为空', $('landed-list').querySelectorAll('.landed-empty').length === 1);
 
   console.log('=== 4. 写卡 ===');
   $('compose-btn').click();
@@ -133,6 +154,11 @@ function ok(name, cond, extra) {
     $('detail-done').click();
     ok('关闭后卡片从海面移除', await until(() => doc.querySelectorAll('#card-grid .card:not(.dissolving)').length < before),
        before + ' → ' + doc.querySelectorAll('#card-grid .card:not(.dissolving)').length);
+    ok('最近靠岸已记录', await until(() => $('landed-list').querySelectorAll('li:not(.landed-empty)').length === 1),
+       '条目数=' + $('landed-list').querySelectorAll('li').length);
+    const landed = $('landed-list').querySelector('li:not(.landed-empty)');
+    ok('靠岸记录含编号', !!landed.querySelector('.no'), landed.querySelector('.no') && landed.querySelector('.no').textContent);
+    ok('靠岸记录含时刻', /^\d{2}:\d{2}$/.test(landed.querySelector('.t').textContent), landed.querySelector('.t').textContent);
   }
 
   console.log('=== 6. 我的孤岛 ===');

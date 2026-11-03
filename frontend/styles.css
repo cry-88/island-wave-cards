@@ -25,7 +25,7 @@
   --signal:    #E0A24A;
   --alive:     #6FD08C;
 
-  /* 六种潮色：只作为卡片左侧的分类脊，不铺底 */
+  /* 六种潮色：卡片分类。用于脊线、标签字、指纹波形三处 */
   --t-sea:   #2F6F7E;
   --t-rain:  #4A6FA5;
   --t-dusk:  #7A5B8C;
@@ -69,6 +69,24 @@ body::before {
     radial-gradient(1px 1px at 58% 28%, rgba(214,227,224,.09) 50%, transparent 50%),
     radial-gradient(1px 1px at 76% 74%, rgba(214,227,224,.11) 50%, transparent 50%),
     radial-gradient(1px 1px at 88% 42%, rgba(214,227,224,.08) 50%, transparent 50%);
+}
+
+/* ---------- 浮游光点：海面下的浮游物 ---------- */
+.drift {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden;
+}
+.drift span {
+  position: absolute; bottom: -14px;
+  width: 3px; height: 3px; border-radius: 50%;
+  background: var(--alive);
+  opacity: 0;
+  animation: float-up linear infinite;
+}
+@keyframes float-up {
+  0%   { transform: translateY(0) translateX(0); opacity: 0; }
+  12%  { opacity: .55; }
+  72%  { opacity: .22; }
+  100% { transform: translateY(-104vh) translateX(22px); opacity: 0; }
 }
 
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
@@ -250,6 +268,27 @@ input, textarea { font-family: inherit; }
 #app-view { display: none; position: relative; z-index: 2; min-height: 100vh; }
 #app-view.on { display: block; }
 
+/* 主界面也要有"海"：深浅渐层 + 缓慢漂移的横向流线 */
+#app-view::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(90% 55% at 76% 0%, rgba(47, 111, 126, .16), transparent 62%),
+    linear-gradient(180deg, rgba(20, 38, 42, .55) 0%, rgba(10, 18, 20, 0) 34%),
+    linear-gradient(0deg, rgba(4, 10, 11, .5) 0%, rgba(10, 18, 20, 0) 28%);
+}
+#app-view::after {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: repeating-linear-gradient(
+    0deg, rgba(47, 111, 126, .07) 0 1px, transparent 1px 30px);
+  -webkit-mask-image: radial-gradient(120% 85% at 50% 0%, #000 0%, transparent 76%);
+  mask-image: radial-gradient(120% 85% at 50% 0%, #000 0%, transparent 76%);
+  animation: current-drift 26s linear infinite;
+}
+@keyframes current-drift {
+  from { background-position-y: 0; }
+  to   { background-position-y: 30px; }
+}
+
 .layout {
   display: grid; grid-template-columns: 264px minmax(0, 1fr);
   max-width: 1180px; margin: 0 auto;
@@ -286,6 +325,27 @@ input, textarea { font-family: inherit; }
   color: #4E6165; letter-spacing: .04em;
 }
 
+/* 左栏底部：把剩余空白填成一段航行日志 */
+.hull-log {
+  margin-top: 16px; padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.hull-log h4 {
+  font-size: 9.5px; letter-spacing: .22em; color: var(--gauge);
+  font-weight: 400; margin-bottom: 9px;
+}
+.hull-log p {
+  font-family: var(--serif);
+  font-size: 11.5px; line-height: 2.05; color: #56696D;
+}
+.hull-log .sig {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: 11px; padding-top: 9px;
+  border-top: 1px dashed rgba(42, 60, 64, .5);
+  font-size: 9px; letter-spacing: .14em; color: #3F5054;
+}
+.hull-log .sig b { color: var(--alive); font-weight: 400; }
+
 /* ---------- 信流 ---------- */
 .stream { padding: 24px 26px 90px; min-width: 0; }
 
@@ -313,13 +373,22 @@ input, textarea { font-family: inherit; }
 
 .card {
   position: relative;
-  background: var(--panel);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px;
+  gap: 0 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .022) 0%, rgba(255, 255, 255, 0) 46%),
+    var(--panel);
   border: 1px solid var(--line-2);
   border-radius: 3px;
   padding: 15px 17px 13px 19px;
   overflow: hidden;
   animation: card-rise .5s cubic-bezier(.22, 1, .36, 1) backwards;
   transition: border-color .25s ease, background .25s ease;
+}
+@media (max-width: 620px) {
+  .card { grid-template-columns: minmax(0, 1fr); }
+  .card .card-wave { display: none; }
 }
 @keyframes card-rise {
   from { opacity: 0; transform: translateY(14px); }
@@ -338,6 +407,24 @@ input, textarea { font-family: inherit; }
 .card.tint-leaf, .detail-card.tint-leaf  { --spine: var(--t-leaf); }
 .card.tint-ember, .detail-card.tint-ember { --spine: var(--t-ember); }
 .card.tint-dawn, .detail-card.tint-dawn  { --spine: var(--t-dawn); }
+
+/* 卡体：左文右波形 */
+.card .card-body { min-width: 0; }
+
+/* 信号波形：这枚卡片独有的指纹（由卡片 id 推导，不是随机数） */
+.card .card-wave {
+  align-self: center;
+  display: flex; flex-direction: column;
+  align-items: stretch; justify-content: center;
+  gap: 6px;
+  padding-left: 16px;
+  border-left: 1px solid rgba(42, 60, 64, .7);
+}
+.card .card-wave svg { display: block; width: 100%; height: 38px; }
+.card .wave-label {
+  font-size: 8.5px; letter-spacing: .14em; color: #4A5C60;
+  text-align: right;
+}
 
 /* 卡头：状态 / 编号 / 时刻 */
 .card .head-line {
@@ -370,6 +457,37 @@ input, textarea { font-family: inherit; }
 }
 .card .meta .dot { width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
 .card .meta .from { color: var(--foam-dim); }
+
+/* ---------- 仪表台新增区块 ---------- */
+.block { margin-top: 18px; }
+.block-title {
+  font-size: 9.5px; letter-spacing: .22em; color: var(--gauge);
+  padding-bottom: 7px; margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.block .readout { border-bottom: 1px solid rgba(34, 48, 52, .45); }
+.block-note {
+  margin-top: 8px; font-size: 9px; letter-spacing: .08em; color: #3F5054;
+}
+
+/* 最近靠岸：本次会话读过的卡片 */
+.landed-list { list-style: none; margin-top: 4px; }
+.landed-list li {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(42, 60, 64, .55);
+  font-size: 10px; letter-spacing: .06em; color: var(--foam-dim);
+}
+.landed-list li .no { color: var(--gauge); }
+.landed-list li .txt {
+  min-width: 0; flex: 1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--serif); font-size: 11.5px; color: var(--foam-dim);
+}
+.landed-list li .t { color: #4E6165; font-size: 9px; flex-shrink: 0; }
+.landed-list .landed-empty {
+  border-bottom: none; color: #3F5054; font-size: 10px; padding-top: 8px;
+}
 
 /* 我的孤岛：删除按钮 */
 .island-card .del {
