@@ -34,6 +34,9 @@
     <a href="https://island-wave-cards.app.workbuddy.host/?sharecode=R7PJGFFCEZ" target="_blank" rel="noopener">进入真实版，把浪花放进所有人的海 →</a>
   </div>
 
+  <!-- 活的背景海面：等深线 / 灯扫 / 浮沫，与左栏仪表共用潮汐模型 -->
+  <canvas id="sea-canvas" aria-hidden="true"></canvas>
+
   <!-- 浮游光点：海面下的浮游物，纯装饰 -->
   <div class="drift" aria-hidden="true">
     <span style="left:12%;animation-duration:26s;animation-delay:0s"></span>
@@ -357,14 +360,9 @@
 
   <div id="toast" role="status"></div>
 
-  <div class="footer-waves" aria-hidden="true">
-    <svg viewBox="0 0 1440 74" preserveAspectRatio="none">
-      <path d="M0,42 C180,18 360,58 540,40 C720,22 900,56 1080,38 C1260,20 1380,44 1440,36 L1440,74 L0,74 Z" fill="rgba(47,111,126,0.10)"/>
-      <path d="M0,54 C180,34 360,66 540,50 C720,34 900,64 1080,48 C1260,32 1380,54 1440,46 L1440,74 L0,74 Z" fill="rgba(31,76,87,0.12)"/>
-    </svg>
-  </div>
-
   <script src="config.js"></script>
+  <script src="tide.js"></script>
+  <script src="sea.js"></script>
   <script src="local-backend.js"></script>
   <script src="app.js"></script>
 </body>

@@ -27,6 +27,9 @@ jobs:
         run: |
           mkdir -p _site
           cp frontend/styles.css frontend/config.js frontend/local-backend.js frontend/app.js _site/
+          # 活海背景的两个部件：潮汐模型（tide.js）与海面引擎（sea.js）
+          # 少了任何一个，页面直接白屏——app.js 一上来就要读 window.ISLAND_TIDE
+          cp frontend/tide.js frontend/sea.js _site/
           # 站点根入口 = 演示版：localStorage 本地后端，零门槛试玩，不依赖云端
           # （真实版住 WorkBuddy 托管域：云端 Origin 安全策略只放行应用自己的域名，
           #   GitHub Pages 域名下真实版无法登录，故不部署到 Pages，避免误导访客）

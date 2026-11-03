@@ -59,8 +59,8 @@ body {
   overflow-x: hidden;
 }
 
-/* 极淡的星点噪声：让深色不死板 */
-body::before {
+/* 极淡的星点噪声：让深色不死板（只在登岛页，主界面由活海接管） */
+#auth-view::before {
   content: "";
   position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .5;
   background-image:
@@ -70,6 +70,20 @@ body::before {
     radial-gradient(1px 1px at 76% 74%, rgba(214,227,224,.11) 50%, transparent 50%),
     radial-gradient(1px 1px at 88% 42%, rgba(214,227,224,.08) 50%, transparent 50%);
 }
+
+/* ---------- 活的背景海面 ---------- */
+/* 这块画布就是主界面所在的那片海，由 sea.js 绘制。
+   z-index:0 让它压在 body 背景之上、内容之下（不能用 -1：
+   负层会被 body 自己的背景色盖住，等于白画）。
+   卡片与面板用半透明底色，于是海面从卡片背后透出来。 */
+#sea-canvas {
+  position: fixed; inset: 0; z-index: 0;
+  width: 100%; height: 100%;
+  pointer-events: none; display: none;
+  opacity: 0;
+  transition: opacity .9s ease;
+}
+#sea-canvas.on { display: block; opacity: 1; }
 
 /* ---------- 浮游光点：海面下的浮游物 ---------- */
 .drift {
@@ -104,8 +118,9 @@ input, textarea { font-family: inherit; }
   position: sticky; top: var(--banner-h); z-index: 50;
   display: flex; align-items: center; gap: 18px;
   padding: 12px 24px;
-  background: rgba(10, 18, 20, .92);
-  backdrop-filter: blur(12px);
+  /* 半透明 + 模糊：顶栏浮在海面上，而不是把海面切掉一块 */
+  background: rgba(7, 14, 16, .72);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
 
@@ -268,25 +283,13 @@ input, textarea { font-family: inherit; }
 #app-view { display: none; position: relative; z-index: 2; min-height: 100vh; }
 #app-view.on { display: block; }
 
-/* 主界面也要有"海"：深浅渐层 + 缓慢漂移的横向流线 */
+/* 主界面只剩一层暗角：把注意力压回卡片，同时让海面的边角沉下去。
+   海本身由 #sea-canvas 绘制，不再用渐层和条纹假装。
+   z-index:-1 是相对 #app-view 这个层叠上下文而言——它仍在海面之上
+   （整个 #app-view 组都比 canvas 靠前），但压在卡片之下，不会盖住文字。 */
 #app-view::before {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background:
-    radial-gradient(90% 55% at 76% 0%, rgba(47, 111, 126, .16), transparent 62%),
-    linear-gradient(180deg, rgba(20, 38, 42, .55) 0%, rgba(10, 18, 20, 0) 34%),
-    linear-gradient(0deg, rgba(4, 10, 11, .5) 0%, rgba(10, 18, 20, 0) 28%);
-}
-#app-view::after {
-  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background-image: repeating-linear-gradient(
-    0deg, rgba(47, 111, 126, .07) 0 1px, transparent 1px 30px);
-  -webkit-mask-image: radial-gradient(120% 85% at 50% 0%, #000 0%, transparent 76%);
-  mask-image: radial-gradient(120% 85% at 50% 0%, #000 0%, transparent 76%);
-  animation: current-drift 26s linear infinite;
-}
-@keyframes current-drift {
-  from { background-position-y: 0; }
-  to   { background-position-y: 30px; }
+  background: radial-gradient(112% 82% at 50% 44%, transparent 46%, rgba(4, 9, 10, .48) 100%);
 }
 
 .layout {
@@ -300,6 +303,11 @@ input, textarea { font-family: inherit; }
   padding: 26px 22px 40px 26px;
   border-right: 1px solid var(--line);
   position: sticky; top: calc(var(--banner-h) + var(--topbar-h)); align-self: start;
+  /* 左栏读数要清楚，但不用压到全黑：
+     底色留一点透明，让海面从仪表台背后隐约透出来——
+     潮位曲线本来就该长在海上。 */
+  background: linear-gradient(90deg, rgba(7, 13, 15, .88) 0%, rgba(7, 13, 15, .76) 58%, rgba(7, 13, 15, .30) 100%);
+  backdrop-filter: blur(2px);
 }
 .gauge { margin-bottom: 18px; }
 .gauge svg { display: block; width: 100%; height: auto; }
@@ -376,13 +384,15 @@ input, textarea { font-family: inherit; }
   display: grid;
   grid-template-columns: minmax(0, 1fr) 118px;
   gap: 0 18px;
+  /* 半透明：海面从卡片背后隐约透出，但字还是读得清 */
   background:
     linear-gradient(180deg, rgba(255, 255, 255, .022) 0%, rgba(255, 255, 255, 0) 46%),
-    var(--panel);
+    rgba(16, 27, 30, .74);
   border: 1px solid var(--line-2);
   border-radius: 3px;
   padding: 15px 17px 13px 19px;
   overflow: hidden;
+  backdrop-filter: blur(2px);
   animation: card-rise .5s cubic-bezier(.22, 1, .36, 1) backwards;
   transition: border-color .25s ease, background .25s ease;
 }
@@ -394,7 +404,7 @@ input, textarea { font-family: inherit; }
   from { opacity: 0; transform: translateY(14px); }
   to   { opacity: 1; transform: none; }
 }
-.card:hover { border-color: var(--gauge); background: var(--panel-2); }
+.card:hover { border-color: var(--gauge); background: rgba(20, 33, 36, .82); }
 
 /* 左侧潮色脊：分类靠这条线，不靠底色 */
 .card::before {
@@ -449,11 +459,12 @@ input, textarea { font-family: inherit; }
   white-space: pre-wrap; word-break: break-word;
 }
 
-/* 卡脚：系统记的账，用等宽 */
+/* 卡脚：系统记的账，用等宽。
+   卡片底色半透明之后，最暗的这级灰字最先失读——提到 #5E7378 才够看。 */
 .card .meta {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin-top: 11px;
-  font-size: 10px; letter-spacing: .06em; color: #4E6165;
+  font-size: 10px; letter-spacing: .06em; color: #5E7378;
 }
 .card .meta .dot { width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
 .card .meta .from { color: var(--foam-dim); }
@@ -551,7 +562,7 @@ input, textarea { font-family: inherit; }
 
 .modal {
   width: 100%; max-width: 520px; max-height: 88vh; overflow: auto;
-  background: var(--panel);
+  background: rgba(16, 27, 30, .97);
   border: 1px solid var(--line-2); border-radius: 4px;
   box-shadow: var(--shadow);
   animation: modal-in .28s cubic-bezier(.22, 1, .36, 1) both;
@@ -663,16 +674,6 @@ input, textarea { font-family: inherit; }
   transition: opacity .28s ease, transform .28s ease;
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-/* ---------- 底部浪线 ---------- */
-/* 只在进入应用主体后出现：登岛页有自己的夜海主视觉 */
-.footer-waves {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 0;
-  pointer-events: none; opacity: .38;
-  display: none;
-}
-#app-view.on ~ .footer-waves { display: block; }
-.footer-waves svg { display: block; width: 100%; height: 74px; }
 
 /* ---------- 减少动效偏好 ---------- */
 @media (prefers-reduced-motion: reduce) {

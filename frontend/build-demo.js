@@ -83,6 +83,16 @@ const checks = [
   ['含演示条', html.includes('demo-banner')],
   ['含真实版链接', html.includes(REAL_SHARE_LINK)],
   ['未残留真实版标题', !html.includes('<title>孤岛浪花 · 浪花只光顾一次</title>')],
+  /* 活海背景的三个必要件：画布、潮汐模型、海面引擎 */
+  ['含海面画布', html.includes('id="sea-canvas"')],
+  ['含潮汐模型', html.includes('src="tide.js"')],
+  ['含海面引擎', html.includes('src="sea.js"')],
+  ['脚本顺序正确', (() => {
+    const i1 = html.indexOf('src="tide.js"');
+    const i2 = html.indexOf('src="sea.js"');
+    const i3 = html.indexOf('src="app.js"');
+    return i1 > 0 && i1 < i2 && i2 < i3;
+  })()],
 ];
 let bad = 0;
 for (const [name, pass] of checks) {

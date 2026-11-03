@@ -86,40 +86,20 @@
   }
 
   /* ---------- 潮汐：真实半日潮推算 ----------
-     五个主要分潮（M2/S2/N2/K1/O1）叠加得到的调和潮曲线。
-     每个分潮有确定的周期与迟角，相加后自然形成半日潮的
-     "一高一低"形态和不等幅的涨落——这正是真实海岸的形状。
+     模型集中在 tide.js —— 仪表读数与背景海面共用同一份数据，
+     所以仪表上的曲线和背景里的浪，永远是同一片海。
      这里是天文推算，不是任何观测站的实测数据。 */
-
-  // 分潮表：name, 周期（小时）, 振幅（米）, 迟角（度）
-  var TIDES = [
-    { name: 'M2', period: 12.4206, amp: 0.62, phase: 32 },   // 主月半日潮
-    { name: 'S2', period: 12.0000, amp: 0.21, phase: 48 },   // 主太阳半日潮
-    { name: 'N2', period: 12.6583, amp: 0.12, phase: 18 },   // 大月椭率半日潮
-    { name: 'K1', period: 23.9345, amp: 0.19, phase: 205 },  // 日月赤纬日潮
-    { name: 'O1', period: 25.8193, amp: 0.13, phase: 178 }   // 主太阳日潮
-  ];
-  var MSL = 1.42;   // 平均海平面（米）
-
-  // 潮高（米）：t 为「距今的小时数」，可正可负
-  function tideHeight(t) {
-    var h = MSL;
-    for (var i = 0; i < TIDES.length; i++) {
-      var c = TIDES[i];
-      h += c.amp * Math.cos(2 * Math.PI * (t / c.period) + c.phase * Math.PI / 180);
-    }
-    return h;
-  }
+  var tide = window.ISLAND_TIDE;
 
   // 把「一天 24 小时」映射成仪表里的曲线路径
   // 量程按真实潮位可能出现的范围定（MSL 1.42 ± 各分潮振幅之和 ≈ ±1.3m）
-  var TIDE_MIN = 0.0, TIDE_MAX = 2.8;
+  var TIDE_MIN = tide.MIN, TIDE_MAX = tide.MAX;
   function tidePath() {
     var w = 172, h = 128, x0 = 40, y0 = 148;
     var d = '', area = '', i, x, y;
     for (i = 0; i <= 96; i++) {
       var t = i / 96 * 24 - 12;          // 过去 12 小时 → 未来 12 小时
-      var lv = tideHeight(t);
+      var lv = tide.height(t);
       x = x0 + (i / 96) * w;
       y = y0 - ((lv - TIDE_MIN) / (TIDE_MAX - TIDE_MIN)) * h;
       d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
@@ -136,7 +116,7 @@
     if (fill) fill.setAttribute('d', p.area);
 
     // 当前时刻：仪表横跨「过去 12 小时 → 未来 12 小时」，现在居中
-    var now = tideHeight(0);
+    var now = tide.height(0);
     var x = 40 + 0.5 * 172;
     var y = 148 - ((now - TIDE_MIN) / (TIDE_MAX - TIDE_MIN)) * 128;
     var dot = $('tide-now-dot'), line = $('tide-now-line');
@@ -145,12 +125,12 @@
 
     if ($('ro-tide')) $('ro-tide').textContent = now.toFixed(2) + ' m';
 
-    // 潮势：往后推 6 分钟看涨还是落
-    var later = tideHeight(0.1);
+    // 潮势：往后推 6 分钟看涨还是落（单位：厘米/小时）
+    var rate = tide.rate(0);
     if ($('ro-tide-dir')) {
-      $('ro-tide-dir').textContent = later > now
-        ? '涨 ' + ((later - now) * 10).toFixed(1) + ' cm/h'
-        : '落 ' + ((now - later) * 10).toFixed(1) + ' cm/h';
+      $('ro-tide-dir').textContent = rate >= 0
+        ? '涨 ' + rate.toFixed(1) + ' cm/h'
+        : '落 ' + (-rate).toFixed(1) + ' cm/h';
     }
 
     // 下次高潮：在未来 24 小时内找第一个局部极大
@@ -158,7 +138,7 @@
       var best = null;
       for (var m = 1; m <= 1440; m++) {
         var t = m / 60;
-        if (tideHeight(t) > tideHeight(t - 1 / 60) && tideHeight(t) >= tideHeight(t + 1 / 60)) {
+        if (tide.height(t) > tide.height(t - 1 / 60) && tide.height(t) >= tide.height(t + 1 / 60)) {
           best = t; break;
         }
       }
@@ -171,15 +151,13 @@
       }
     }
 
-    // 本次落差：当前这次潮 cycle 的高潮减低潮
-    if ($('ro-range')) {
-      var hi = -99, lo = 99;
-      for (var k = 0; k <= 1440; k += 5) {
-        var v = tideHeight(k / 60);
-        if (v > hi) hi = v;
-        if (v < lo) lo = v;
-      }
-      $('ro-range').textContent = (hi - lo).toFixed(2) + ' m';
+    // 本次落差：当前这次潮 cycle 的高潮减低潮（tide.js 里的同一套算法）
+    var rng = tide.range();
+    if ($('ro-range')) $('ro-range').textContent = rng.toFixed(2) + ' m';
+
+    // 把这一份潮汐交给背景海面：仪表与海面读的是同一片海
+    if (window.ISLAND_SEA) {
+      window.ISLAND_SEA.setTide(tide.norm(0), tide.rate(0), rng);
     }
   }
 
@@ -318,6 +296,7 @@
     $('card-overlay').classList.remove('on');
     $('compose-overlay').classList.remove('on');
     $('app-view').classList.remove('on');
+    if (window.ISLAND_SEA) window.ISLAND_SEA.unmount();
     $('auth-view').style.display = '';
     $('phone').value = '';
     $('code').value = '';
@@ -339,17 +318,24 @@
     $('who').textContent = maskPhone(user.phone) || '一位岛民';
     $('auth-view').style.display = 'none';
     $('app-view').classList.add('on');
+    // 站上海面：背景海面开始活着
+    if (window.ISLAND_SEA) {
+      var seaCanvas = document.getElementById('sea-canvas');
+      if (seaCanvas) window.ISLAND_SEA.mount(seaCanvas);
+    }
     switchView('sea');
     startPolling();
     startTideClock();
   }
 
-  // 潮位仪表每分钟走一格：游标随时间移动，读数刷新
+  // 潮位仪表每 20 秒走一格：游标随时间移动，读数刷新。
+  // 20 秒而不是 60 秒，是因为背景海面的浪也在跟着这份数据走——
+  // 一分钟一格的话，海面看起来会是"冻住"的。
   var tideTimer = null;
   function startTideClock() {
     stopTideClock();
     renderTide();
-    tideTimer = setInterval(renderTide, 60000);
+    tideTimer = setInterval(renderTide, 20000);
   }
   function stopTideClock() {
     if (tideTimer) { clearInterval(tideTimer); tideTimer = null; }
@@ -569,6 +555,14 @@
     });
     if (added > 0) {
       grid.insertBefore(frag, grid.firstChild);
+      // 新浪花拍岸，水面跟着晃一下
+      if (window.ISLAND_SEA) {
+        var first = grid.querySelector('.card');
+        if (first) {
+          var fb = first.getBoundingClientRect();
+          window.ISLAND_SEA.pulse(fb.left + fb.width / 2, fb.top + fb.height / 2);
+        }
+      }
     }
     var anyLeft = !!grid.querySelector('.card:not(.dissolving)');
     $('sea-empty').classList.toggle('on', !anyLeft);
@@ -694,6 +688,11 @@
     var el = $('card-grid').querySelector('.card[data-id="' + c.id + '"]');
     renderedSeaIds.delete(Number(c.id));
     if (el) {
+      // 卡片在海面上留下的涟漪——"看过即消失"在背景上看得见
+      if (window.ISLAND_SEA) {
+        var box = el.getBoundingClientRect();
+        window.ISLAND_SEA.pulse(box.left + box.width / 2, box.top + box.height / 2);
+      }
       el.classList.add('dissolving');
       setTimeout(function () { el.remove(); }, 800);
       setTimeout(function () { toast('这朵浪花退去了，不会再光顾这座岛'); }, 260);

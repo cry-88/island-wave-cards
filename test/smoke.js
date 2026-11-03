@@ -22,7 +22,8 @@ vc.on('jsdomError', (e) => {
 
 let html = fs.readFileSync(path.join(FRONTEND, 'demo.html'), 'utf8');
 html = html.replace(/<link[^>]*fonts\.(googleapis|gstatic)[^>]*>/g, '');
-for (const f of ['config.js', 'local-backend.js', 'app.js']) {
+// 内联顺序必须与 index.html 一致：config → tide → sea → 后端 → app
+for (const f of ['config.js', 'tide.js', 'sea.js', 'local-backend.js', 'app.js']) {
   const js = fs.readFileSync(path.join(FRONTEND, f), 'utf8');
   html = html.replace(
     new RegExp('<script src="' + f.replace('.', '\\.') + '"></script>'),
@@ -36,6 +37,22 @@ const dom = new JSDOM(html, {
   pretendToBeVisual: true,
   virtualConsole: vc,
   beforeParse(window) {
+    // jsdom 没有 canvas 实现，getContext 会报 "Not implemented"。
+    // 这里给它一个够用的假 2D 上下文，让背景海面引擎真的跑起来，
+    // 这样才能断言"海面确实在动、等深线确实存在"。
+    window.HTMLCanvasElement.prototype.getContext = function () {
+      const grad = { addColorStop() {} };
+      return {
+        createLinearGradient: () => grad,
+        createRadialGradient: () => grad,
+        setTransform() {}, clearRect() {}, fillRect() {}, beginPath() {},
+        moveTo() {}, lineTo() {}, stroke() {}, save() {}, restore() {},
+        arc() {}, fill() {}, strokeText() {}, fillText() {},
+        globalAlpha: 1, globalCompositeOperation: 'source-over',
+        fillStyle: '', strokeStyle: '', lineWidth: 1, lineCap: 'butt',
+        font: '', textAlign: 'left', textBaseline: 'alphabetic'
+      };
+    };
     window.addEventListener('error', (e) => {
       errors.push('[window.error] ' + (e.error ? e.error.stack : e.message));
     });
@@ -124,6 +141,44 @@ function ok(name, cond, extra) {
   ok('本次落差读数有值', /\d\.\d\d m/.test($('ro-range').textContent), $('ro-range').textContent);
   ok('最近靠岸初始为空', $('landed-list').querySelectorAll('.landed-empty').length === 1);
 
+  console.log('=== 3c. 活的背景海面 ===');
+  ok('海面画布已挂载', !!$('sea-canvas'), 'canvas#sea-canvas');
+  ok('潮汐模型已就绪', !!window.ISLAND_TIDE && Array.isArray(window.ISLAND_TIDE.TIDES));
+  ok('分潮共 5 个', window.ISLAND_TIDE.TIDES.length === 5,
+     window.ISLAND_TIDE.TIDES.map((c) => c.name).join('/'));
+  ok('背景引擎已就绪', !!window.ISLAND_SEA);
+  const sea = window.ISLAND_SEA.info();
+  ok('海面已挂载并运行', sea.mounted === true && sea.running === true,
+     'mounted=' + sea.mounted + ' running=' + sea.running);
+  ok('等深线已生成', sea.contours >= 14, 'contours=' + sea.contours);
+  ok('海面已收到潮位', sea.level >= 0 && sea.level <= 1, 'level=' + sea.level.toFixed(3));
+
+  // 潮位与仪表读数必须一致：同一片海，不是两套数
+  // 比的是目标值（levelTarget）——海面当前值正在平滑趋近它，途中会略低
+  const gaugeLevel = parseFloat($('ro-tide').textContent);
+  ok('海面潮位与仪表同源', Math.abs(sea.levelTarget - gaugeLevel / window.ISLAND_TIDE.MAX) < 0.01,
+     'sea目标=' + sea.levelTarget.toFixed(3) + ' gauge=' + gaugeLevel);
+
+  // 潮流真的在走：等一会儿，等深线应该已经被推着位移了
+  const flowBefore = sea.flow;
+  const levelBefore = sea.level;
+  await wait(600);
+  const sea2 = window.ISLAND_SEA.info();
+  ok('海面在流动', Math.abs(sea2.flow - flowBefore) > 0.5,
+     'flow ' + flowBefore.toFixed(2) + ' → ' + sea2.flow.toFixed(2));
+  ok('浪高在向潮位收敛', Math.abs(sea2.level - sea2.levelTarget) < Math.abs(levelBefore - sea2.levelTarget),
+     'level ' + levelBefore.toFixed(3) + ' → ' + sea2.level.toFixed(3) + ' 目标 ' + sea2.levelTarget.toFixed(3));
+  ok('流向与潮势同向',
+     (() => {
+       const dir = $('ro-tide-dir').textContent;
+       const rising = dir.indexOf('涨') === 0;
+       const moving = sea2.flowSpeed;
+       // 潮势为 0（平潮）时不要求方向
+       if (Math.abs(moving) < 0.05) return true;
+       return rising ? moving > 0 : moving < 0;
+     })(),
+     '潮势=' + $('ro-tide-dir').textContent + ' 流速=' + sea2.flowSpeed.toFixed(2));
+
   console.log('=== 4. 写卡 ===');
   $('compose-btn').click();
   ok('写卡弹层打开', $('compose-overlay').classList.contains('on'));
@@ -159,6 +214,9 @@ function ok(name, cond, extra) {
     const landed = $('landed-list').querySelector('li:not(.landed-empty)');
     ok('靠岸记录含编号', !!landed.querySelector('.no'), landed.querySelector('.no') && landed.querySelector('.no').textContent);
     ok('靠岸记录含时刻', /^\d{2}:\d{2}$/.test(landed.querySelector('.t').textContent), landed.querySelector('.t').textContent);
+    // 卡片退场时，水面应该被推开一圈涟漪——"看过即消失"看得见
+    ok('卡片退场激起涟漪', window.ISLAND_SEA.info().pulses > 0,
+       'pulses=' + window.ISLAND_SEA.info().pulses);
   }
 
   console.log('=== 6. 我的孤岛 ===');
@@ -179,6 +237,7 @@ function ok(name, cond, extra) {
   ok('离岛后回到登岛页', await until(() => !$('app-view').classList.contains('on')));
   ok('离岛后卡片海清空', doc.querySelectorAll('#card-grid .card').length === 0);
   ok('离岛后孤岛清空', doc.querySelectorAll('#island-grid .card').length === 0);
+  ok('离岛后海面已收起', window.ISLAND_SEA.info().mounted === false);
 
   console.log('');
   console.log(logs.join('\n'));
